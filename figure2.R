@@ -50,11 +50,11 @@
 
 
 
-############################################################
+#########################################################################
 #
-#   LOAD ANNOTATION OBJECTS FOR HEATMAPS AND ONCOPLOTS
+#   LOAD AND CONSTRUCT ANNOTATION OBJECTS FOR HEATMAPS AND ONCOPLOTS
 #
-############################################################
+#########################################################################
 
 # Load list of all annotations
 annotations.hrplus <- make_cohort_annotations(samples.hrplus, meta.hrplus)
@@ -66,13 +66,22 @@ lgds.htan <- make_cohort_legends(samples.hrplus, meta.hrplus, select_samples = h
 lgds.change <- make_cohort_legends(samples.hrplus, meta.hrplus, select_samples = htan.onProgression)
 
 
-##########################################
-#
-#   BUILD ANNOTATIONS FOR PLOTTING
-#
-##########################################
 
-# Select top and bottom annotations for HTAN samples
+# Oncoplot annotations
+onco_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
+                                annotations.hrplus$erAnno %v%
+                                annotations.hrplus$intrinsicAnno %v%
+                                annotations.hrplus$pamAnno %v%
+                                annotations.hrplus$patientAnno %v% 
+                                annotations.hrplus$htanPointer %v% 
+                                annotations.hrplus$htanNames, 
+                              list(lgds.htan$opAstrLgd,
+                                   lgds.htan$onProgLgd,
+                                   lgds.htan$intrinsicLgd,
+                                   lgds.htan$pamLgd))
+
+
+# Annotations for all samples with patient ID annotation
 top_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
                                annotations.hrplus$erAnno %v%
                                annotations.hrplus$intrinsicAnno, 
@@ -87,7 +96,7 @@ btm_annotations.htan <- list(annotations.hrplus$pamAnno %v%
 
 
 
-# Select top and bottom annotations for HTAN change samples
+# Annotations for delta heatmaps
 top_annotations.change.htan <- list(annotations.hrplus$onProgAnno %v% 
                                       annotations.hrplus$erAnno %v%
                                       annotations.hrplus$intrinsicAnno, 
@@ -112,6 +121,66 @@ btm_annotations.split.htan <- list(annotations.hrplus$pamAnno %v%
                                      annotations.hrplus$htanPointer %v% 
                                      annotations.hrplus$htanNames, 
                                    list(lgds.htan$pamLgd))
+
+
+############################################################
+#
+#   LOAD TABLES FOR GENE AND PATHWAY SETS
+#
+############################################################
+
+
+
+
+
+
+
+##################################################################
+#
+#  FIGURE 2A: 
+#
+##################################################################
+
+
+
+##################################################################
+#
+#  FIGURE 2B: 
+#
+##################################################################
+
+
+
+##################################################################
+#
+#  FIGURE 2C: 
+#
+##################################################################
+
+
+
+##################################################################
+#
+#  FIGURE 2D: 
+#
+##################################################################
+
+
+
+##################################################################
+#
+#  FIGURE 2E: 
+#
+##################################################################
+
+
+
+##################################################################
+#
+#  FIGURE 2F: 
+#
+##################################################################
+
 
 
 
