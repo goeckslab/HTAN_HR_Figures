@@ -6,13 +6,30 @@
 ##########################################################
 
 
+# Helper function to make feature category table from named list
+make_category_table <-  function(feature_sets, feature_name = 'Gene') {
+  
+  # Melt list of features into table 
+  cat_tbl <- feature_sets %>%
+    melt() %>%
+    setNames(c(feature_name, 'Category')) %>%
+    mutate(!!feature_name := as.character(.data[[feature_name]]),
+           Category = as.character(Category)) %>%
+    arrange(Category, .data[[feature_name]]) %>%
+    data.frame()
+  rownames(cat_tbl) <- cat_tbl[,feature_name]
+  
+  return(cat_tbl)
+
+}
+
 ###############################
 #
 #   GENES AND REGULATORS
 #
 ###############################
 
-select_gene_cats <- list("G0" = c("CDKN1A", "CDKN1B", "CDKN1C", "CDKN2A", "CDKN2B", 
+gene_cats.htan <- list("G0" = c("CDKN1A", "CDKN1B", "CDKN1C", "CDKN2A", "CDKN2B", 
                                   "CDKN2C", "CDKN2D", "RB1", "RBL1"), 
                          "G1" = c("CCND1", "CCND2", 
                                   "CCND3", "CDK4", "CDK6"), 
@@ -50,7 +67,7 @@ select_gene_cats <- list("G0" = c("CDKN1A", "CDKN1B", "CDKN1C", "CDKN2A", "CDKN2
 
 
 # Make into table and return
-select_gene_cats <- make_category_table(select_gene_cats, 'Gene') %>%
+gene_cats.htan <- make_category_table(gene_cats.htan, 'Gene') %>%
   arrange(Category, Gene)
 
 
@@ -63,7 +80,7 @@ select_gene_cats <- make_category_table(select_gene_cats, 'Gene') %>%
 
 
 
-pw_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS", 
+gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS", 
                                       "MYC_TARGETS_V1", 
                                       "KEGG_DNA_REPLICATION",  
                                       "REACTOME_S_PHASE", 
@@ -91,6 +108,7 @@ pw_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS",
                                     "KEGG_JAK_STAT_SIGNALING_PATHWAY"),
                      'Immune Signaling' = c('Antigen Presentation',
                                             'Chemokine',
+                                            'T Cell Inflamed GEP',
                                             "ALLOGRAFT_REJECTION", 
                                             "COAGULATION", 
                                             "COMPLEMENT", 
@@ -115,7 +133,7 @@ pw_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS",
                                                 "Tem cells", 
                                                 "Tfh cells"))
 
-pw_cats.htan <- make_category_table(pw_cats.htan, 'Pathway')
+gsva_cats.htan <- make_category_table(gsva_cats.htan, 'Pathway')
 
 
 ######################################################
@@ -126,7 +144,7 @@ pw_cats.htan <- make_category_table(pw_cats.htan, 'Pathway')
 
 
 # Merged categories
-pw_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION", 
+gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION", 
                                                 "APICAL_SURFACE", 
                                                 "PEROXISOME"), 
                        "Development" = c("ADIPOGENESIS", 
@@ -161,27 +179,48 @@ pw_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION",
                                               "INTERFERON_GAMMA_RESPONSE", 
                                               "REACTOME_PD_1_SIGNALING",
                                               "Antigen Presentation", 
-                                              "Chemokine"), 
-                       "JAK/STAT" = c("IL2_STAT5_SIGNALING", "IL6_JAK_STAT3_SIGNALING", 
-                                      "BIOCARTA_STAT3_PATHWAY", "REACTOME_STAT5_ACTIVATION", "KEGG_JAK_STAT_SIGNALING_PATHWAY"
-                       ), 
-                       "Metabolic" = c("BILE_ACID_METABOLISM", "CHOLESTEROL_HOMEOSTASIS", 
-                                       "FATTY_ACID_METABOLISM", "GLYCOLYSIS", "HEME_METABOLISM", "OXIDATIVE_PHOSPHORYLATION", 
+                                              "Chemokine",
+                                              'T Cell Inflamed GEP'), 
+                       "JAK/STAT" = c("IL2_STAT5_SIGNALING", 
+                                      "IL6_JAK_STAT3_SIGNALING", 
+                                      "BIOCARTA_STAT3_PATHWAY", 
+                                      "REACTOME_STAT5_ACTIVATION", 
+                                      "KEGG_JAK_STAT_SIGNALING_PATHWAY"), 
+                       "Metabolic" = c("BILE_ACID_METABOLISM", 
+                                       "CHOLESTEROL_HOMEOSTASIS", 
+                                       "FATTY_ACID_METABOLISM", 
+                                       "GLYCOLYSIS", 
+                                       "HEME_METABOLISM", 
+                                       "OXIDATIVE_PHOSPHORYLATION", 
                                        "XENOBIOTIC_METABOLISM"), 
-                       "Pathway" = c("APOPTOSIS", "HYPOXIA", 
-                                     "PROTEIN_SECRETION", "REACTIVE_OXYGEN_SPECIES_PATHWAY", "UNFOLDED_PROTEIN_RESPONSE"
-                       ), 
-                       "Proliferation" = c("E2F_TARGETS", "G2M_CHECKPOINT", "MITOTIC_SPINDLE", 
-                                           "MYC_TARGETS_V1", "MYC_TARGETS_V2", "P53_PATHWAY", "KEGG_DNA_REPLICATION", 
-                                           "REACTOME_S_PHASE", "REACTOME_REPLICATION_STRESS", "REACTOME_CELL_CYCLE"
-                       ), 
-                       "Receptor Signaling" = c("ANDROGEN_RESPONSE", "ESTROGEN_RESPONSE_EARLY", 
+                       "Pathway" = c("APOPTOSIS", 
+                                     "HYPOXIA", 
+                                     "PROTEIN_SECRETION", 
+                                     "REACTIVE_OXYGEN_SPECIES_PATHWAY", 
+                                     "UNFOLDED_PROTEIN_RESPONSE"), 
+                       "Proliferation" = c("E2F_TARGETS", 
+                                           "G2M_CHECKPOINT", 
+                                           "MITOTIC_SPINDLE", 
+                                           "MYC_TARGETS_V1", 
+                                           "MYC_TARGETS_V2", 
+                                           "P53_PATHWAY", 
+                                           "KEGG_DNA_REPLICATION", 
+                                           "REACTOME_S_PHASE", 
+                                           "REACTOME_REPLICATION_STRESS", 
+                                           "REACTOME_CELL_CYCLE"), 
+                       "Receptor Signaling" = c("ANDROGEN_RESPONSE", 
+                                                "ESTROGEN_RESPONSE_EARLY", 
                                                 "ESTROGEN_RESPONSE_LATE"), 
                        "Signaling" = c("HEDGEHOG_SIGNALING", 
-                                       "KRAS_SIGNALING_DN", "KRAS_SIGNALING_UP", "MTORC1_SIGNALING", 
-                                       "NOTCH_SIGNALING", "PI3K_AKT_MTOR_SIGNALING", "TGF_BETA_SIGNALING", 
-                                       "TNFA_SIGNALING_VIA_NFKB", "WNT_BETA_CATENIN_SIGNALING"))
+                                       "KRAS_SIGNALING_DN", 
+                                       "KRAS_SIGNALING_UP", 
+                                       "MTORC1_SIGNALING", 
+                                       "NOTCH_SIGNALING", 
+                                       "PI3K_AKT_MTOR_SIGNALING", 
+                                       "TGF_BETA_SIGNALING", 
+                                       "TNFA_SIGNALING_VIA_NFKB", 
+                                       "WNT_BETA_CATENIN_SIGNALING"))
 
-pw_cats.merged <- make_category_table(pw_cats.merged, 'Pathway')
+gsva_cats.merged <- make_category_table(gsva_cats.merged, 'Pathway')
 
 
