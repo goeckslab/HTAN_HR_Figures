@@ -23,11 +23,11 @@ make_category_table <-  function(feature_sets, feature_name = 'Gene') {
 
 }
 
-###############################
+########################################
 #
 #   GENES AND REGULATORS
 #
-###############################
+########################################
 
 gene_cats.htan <- list("G0" = c("CDKN1A", "CDKN1B", "CDKN1C", "CDKN2A", "CDKN2B", 
                                   "CDKN2C", "CDKN2D", "RB1", "RBL1"), 
@@ -72,11 +72,11 @@ gene_cats.htan <- make_category_table(gene_cats.htan, 'Gene') %>%
 
 
 
-##############################################
+#######################################################
 #
-#   PATHWAY CATEGORIES FOR MAIN FIGURES
+#   RNA PATHWAY CATEGORIES FOR MAIN FIGURES
 #
-##############################################
+#######################################################
 
 
 
@@ -136,11 +136,11 @@ gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS",
 gsva_cats.htan <- make_category_table(gsva_cats.htan, 'Pathway')
 
 
-######################################################
+###############################################################
 #
-#   PATHWAY CATEGORIES FOR SUPPLEMENTAL FIGURES
+#   RNA PATHWAY CATEGORIES FOR SUPPLEMENTAL FIGURES
 #
-######################################################
+###############################################################
 
 
 # Merged categories
@@ -223,4 +223,42 @@ gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION",
 
 gsva_cats.merged <- make_category_table(gsva_cats.merged, 'Pathway')
 
+# Color scheme for row annotations
+gsva_colors <- c("Cellular Component" = "#EC579AFF", 
+                 "Development" = "#7F8624FF", 
+                 "DNA Damage" = "#0C5BB0FF", 
+                 "Metabolic" = "#149BEDFF", 
+                 "Pathway" = "#FA6B09FF", 
+                 "Proliferation" = "#FEC10BFF", 
+                 "Signaling" = "purple", 
+                 "JAK/STAT" = "turquoise3", 
+                 "Immune Signaling" = "#EE0011FF", 
+                 "Receptor Signaling" = "#15983DFF"
+)
 
+###############################################################
+#
+#   PROTEIN PATHWAY CATEGORIES FOR SUPPLEMENTAL FIGURES
+#
+###############################################################
+
+ppw_cats.htan <- list('Cell Cycle' = c("Cell_cycle_progression", 
+                                      "G0_G1", 
+                                      "G1_S", 
+                                      "G2_M"),
+                     'Replication Stress' = c("G2M_Checkpoint"),
+                     'Receptor Signaling' = c("Hormone_receptor", 
+                                              "Hormone_signaling_Breast", 
+                                              "RTK"),
+                     'Immune Signaling' = c("Immune", 
+                                            "Immune_Checkpoint", 
+                                            "JAK/STAT"),
+                     'Apoptosis' = c('Apoptosis', 
+                                     'BH3_Balance'),
+                     'Pathway Signaling' = c("Notch", 
+                                             "RAS_MAPK"),
+                     'Tumor' = c('Tumor_Content'),
+                     'PI3K/AKT/mTOR' = c("PI3K_Akt", 
+                                         "TSC_mTOR"))
+
+ppw_cats.htan <- make_category_table(pw_cats.rppa, 'Pathway')
