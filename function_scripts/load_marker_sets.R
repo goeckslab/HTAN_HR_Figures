@@ -38,7 +38,6 @@ gene_cats.htan <- list("G0" = c("CDKN1A",
                                 "CDK6"), 
                        "G1/S" = c("BRD4", 
                                   "CCNE1", 
-                                  
                                   "CDK2", 
                                   "E2F1", 
                                   "E2F2", 
