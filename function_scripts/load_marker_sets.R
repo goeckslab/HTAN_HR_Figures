@@ -25,7 +25,47 @@ make_category_table <-  function(feature_sets, feature_name = 'Gene') {
 
 ########################################
 #
-#   GENES AND REGULATORS
+#   GENE ALTERATION CATAGORIES (DNA)
+#
+########################################
+
+dna_cats.htan <- list("Cell Cycle" = c("AURKA", 
+                                       "BRD4", 
+                                       "CCND1", 
+                                       "CDKN1B",  
+                                       "CDKN2A", 
+                                       "CDKN2B", 
+                                       "RB1"), 
+                      "DNA Damage" = c("ARID1A",
+                                       "BRCA2",  
+                                       "MSH6", 
+                                       "PARP1", 
+                                       "SLFN11"), 
+                      "MAPK" = c("BRAF"), 
+                      "P53" = c("MDM4", 
+                                "TP53"), 
+                      "PI3K/AKT/mTOR" = c("AKT3", 
+                                          "PIK3CA",  
+                                          "PRKCA",  
+                                          "RICTOR", 
+                                          "RPS6KB1"), 
+                      "Receptor" = c("ERBB2",  
+                                     "ESR1", 
+                                     "FGFR1",
+                                     "GATA3",  
+                                     "KMT2C"), 
+                      "Replication Stress" = c("ATM", 
+                                               "ATR", 
+                                               "CHEK1", 
+                                               "CHEK2"))
+
+# Make into table and return
+dna_cats.htan <- make_category_table(dna_cats.htan, 'Gene')
+
+
+########################################
+#
+#   GENES AND REGULATORS (RNA)
 #
 ########################################
 

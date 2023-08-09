@@ -157,27 +157,31 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 
 
 
-##################################################################
+####################################################################################
 #
-#  FIGURE 2A: 
+#  FIGURE 2A: ONCOPLOT OF GENOMIC ALTERATIONS FROM HIGH DEPTH TARGETED DNA-SEQ
 #
-##################################################################
+####################################################################################
 
-
-# Oncoplot with fixes column order
-make_oncoprints(cnvs.hrplus, snvs.hrplus, 
-                meta.hrplus %>% mutate(HTAN = gsub('_p2', '', HTAN)), 
-                pre = paste0(results_dir.htan,'/dna_figures/oncoplots/select_cats_fixed_'), min_vars = 1,
-                select_variants = select_dna_cats$Gene,
-                category_table = select_dna_cats,
-                #select_samples = htan.hrplus,
+# Oncoplot of select variants from relevant pathways with ordered columns
+make_oncoprints(cnvs.htan, 
+                snvs.htan,
+                meta.htan,
                 select_samples = htan.paired,
+                
+                select_variants = dna_cats.htan$Gene,
+                category_table = dna_cats.htan,
+                
+                pre = paste0(results_dir.htan,'/dna_figures/oncoplots/select_cats_fixed_'), min_vars = 1,
+                
                 show_pct = FALSE,
-                cluster_columns = FALSE, cluster_rows = FALSE,
+                cluster_columns = FALSE, 
+                cluster_rows = FALSE,
                 fix_order = TRUE,
-                #column_split = 'HTAN',
+                
                 ht_width = unit(10.5, 'in'),
                 ht_height = unit(7.7, 'in'),
+                
                 bottom_anno = list(onco_annotations.htan[[1]], NULL))
 
 
