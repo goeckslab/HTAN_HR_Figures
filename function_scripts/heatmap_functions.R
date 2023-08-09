@@ -9,6 +9,80 @@
 library(ComplexHeatmap)
 
 
+# Function for building heatmap annotation legend objects
+make_cohort_legends <- function(samples_table, meta, select_samples = NULL, lgd_rows = 2,
+                                treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
+                                lgd_fontsize = 12, lgd_gridsize = 4) {
+  
+  
+  # All color schemes subsetted down to select patients
+  if (!is.null(select_samples)) {
+    
+    drug_cols <- drug_cols[names(drug_cols) %in% meta[select_samples, 'Treatment']]
+    
+    # TODO: Change to response colors
+    intrinsic_cols <- intrinsic_cols[names(intrinsic_cols) %in% meta[select_samples, 'PatientResponse']]
+    
+    pam_colors <- pam_colors[names(pam_colors) %in% meta[select_samples, 'PAM50']]
+    pam_change_colors <- pam_change_colors[names(pam_change_colors) %in% meta[select_samples, 'pamChange']]
+    site_colors <- site_colors[names(site_colors) %in% meta[select_samples, 'BiopsySite']]
+    
+    htan_cols <- htan_cols[names(htan_cols) %in% meta[select_samples, 'HTAN']]
+    
+  }
+  
+  # Legend for pre-treatment and on-progression with on-progression labeled with asterisk
+  opAstrLgd <- Legend(title = 'Treatment', type = 'points', pch = c(NA,8), at = c('PreTreatment', 'OnProgression'), background = c('white'),
+                      labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                      title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  # Legend for CDK4/6i and ERi treatment
+  # TODO: Either bring in function or isoloate here
+  onProgLgd <- make_treatment_heatmap_annotations(meta, select_samples = select_samples, lgd_rows = lgd_rows, 
+                                                  treatment_title = treatment_title, onProgression = TRUE)[[2]]
+  
+  # Make response annotation object and legend list
+  # TODO: Change to responseLgd
+  intrinsicLgd <- Legend(labels = names(intrinsic_cols), legend_gp = gpar(fill = intrinsic_cols), title = 'Patient Response', nrow = lgd_rows, 
+                         labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                         title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  # PAM50 annotation legend
+  pamLgd <- Legend(labels = names(pam_colors), legend_gp = gpar(fill = pam_colors), title = 'PAM50', nrow = lgd_rows, 
+                   labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                   title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  # PAM50 change annotation legend
+  pamChangeLgd <- Legend(labels = names(pam_change_colors), legend_gp = gpar(fill = pam_change_colors), title = 'PAM50', nrow = lgd_rows, 
+                         labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                         title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  
+  # Metastatic site annotations
+  siteLgd <- Legend(labels = names(site_colors), legend_gp = gpar(fill = site_colors), title = 'Biopsy Site', nrow = lgd_rows, 
+                    labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                    title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  
+  
+  # Make HTAN patient color legend
+  if (strip_names) { names(htan_cols) <- gsub('HTA', '', names(htan_cols))}
+  if (rm_duplicate_pair) {htan_cols <- htan_cols[!names(htan_cols) %in% c('HTA9-1_p2', '9-1_p2')]}
+  patientLgd <- Legend(labels = names(htan_cols), legend_gp = gpar(fill = htan_cols), title = 'Patient ID', nrow = lgd_rows, 
+                       labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+                       title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  
+  return(list('opAstrLgd' = opAstrLgd, 
+              'onProgLgd' = onProgLgd,
+              'intrinsicLgd' = intrinsicLgd, # change to responseLgd
+              'pamLgd' = pamLgd, 
+              'pamChangeLgd' = pamChangeLgd,
+              'patientLgd' = patientLgd, 
+              'siteLgd' = siteLgd))
+  
+}
+
 # Convenience function to create all cohort heatmap annotations (except assay availability annotations)
 make_heatmap_annotations <- function(meta) {
   
@@ -49,6 +123,7 @@ make_heatmap_annotations <- function(meta) {
               'intrinsicAnno' = intrinsicAnno, # change to "responseAnno"
               'pamAnno' = pamAnno, 
               'pamChangeAnno' = pamChangeAnno,
+              'siteAnno' <- siteAnno,
               'patientAnno' = patientAnno,
               'htanPointer' = htanPointer,
               'htanNames' = htanNames,
