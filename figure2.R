@@ -79,13 +79,13 @@ htan.onProgression <- c("HTA9-1_Bx2", "HTA9-1_Bx5",
 #########################################################################
 
 # Load list of all annotations
-annotations.hrplus <- make_cohort_annotations(samples.hrplus, meta.hrplus)
+annotations.htan <- make_heatmap_annotations(meta.htan)
 
-# List of heatmap legends specifically for htan samples
-lgds.htan <- make_cohort_legends(samples.hrplus, meta.hrplus, select_samples = htan.paired)
+# List of legends for heatmaps showing all (paired) samples
+lgds.htan <- make_heatmap_legends(meta.htan, select_samples = htan.paired)
 
-# For heatmaps showing change in value (only need on-progression labels)
-lgds.change <- make_cohort_legends(samples.hrplus, meta.hrplus, select_samples = htan.onProgression)
+# List of legends for heatmaps showing delta between pairs during therapy
+lgds.change <- make_heatmap_legends(meta.htan, select_samples = htan.onProgression)
 
 
 
@@ -132,7 +132,7 @@ btm_annotations.change.htan <- list(annotations.hrplus$pamChangeAnno %v%
 
 
 
-# Select top and bottom annotations for HTAN samples when splitting by patient (doesn't need patient ID annotation)
+# Annotations for heatmaps split by patient (doesn't need patient ID annotation)
 top_annotations.split.htan <- list(annotations.hrplus$onProgAnno %v% 
                                      annotations.hrplus$erAnno %v%
                                      annotations.hrplus$intrinsicAnno, 
@@ -163,26 +163,31 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 #
 ####################################################################################
 
+# TODO: Test when select_samples = NULL
+
 # Oncoplot of select variants from relevant pathways with ordered columns
-make_oncoprints(cnvs.htan, 
-                snvs.htan,
-                meta.htan,
-                select_samples = htan.paired,
-                
-                select_variants = dna_cats.htan$Gene,
-                category_table = dna_cats.htan,
-                
-                pre = paste0(results_dir.htan,'/dna_figures/oncoplots/select_cats_fixed_'), min_vars = 1,
-                
-                show_pct = FALSE,
-                cluster_columns = FALSE, 
-                cluster_rows = FALSE,
-                fix_order = TRUE,
-                
-                ht_width = unit(10.5, 'in'),
-                ht_height = unit(7.7, 'in'),
-                
-                bottom_anno = list(onco_annotations.htan[[1]], NULL))
+make_oncoplots(cnvs.hrplus, 
+               snvs.hrplus,
+               meta.hrplus,
+               select_samples = htan.paired,
+               
+               select_variants = dna_cats.htan$Gene,
+               category_table = dna_cats.htan,
+               
+               #pre = paste0(results_dir.htan,'/dna_figures/oncoplots/select_cats_fixed_'), 
+               pre = paste0(results_dir.htan,'/dna_figures/oncoplots/test_'), 
+               
+               min_vars = 1,
+               
+               show_pct = FALSE,
+               cluster_columns = FALSE, 
+               cluster_rows = FALSE,
+               fix_order = TRUE,
+               
+               ht_width = unit(10.5, 'in'),
+               ht_height = unit(7.7, 'in'),
+               
+               bottom_anno = list(onco_annotations.htan[[1]], NULL))
 
 
 

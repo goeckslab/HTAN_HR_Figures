@@ -162,7 +162,6 @@ gene_cats.htan <- make_category_table(gene_cats.htan, 'Gene') %>%
 #######################################################
 
 
-
 gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS", 
                                       "MYC_TARGETS_V1", 
                                       "KEGG_DNA_REPLICATION",  
