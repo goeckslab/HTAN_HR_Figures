@@ -10,10 +10,9 @@ library(ComplexHeatmap)
 
 
 # Function for building heatmap annotation legend objects
-make_cohort_legends <- function(samples_table, meta, select_samples = NULL, lgd_rows = 2,
-                                treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
-                                lgd_fontsize = 12, lgd_gridsize = 4) {
-  
+make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd_rows = 2,
+                                 treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
+                                 lgd_fontsize = 12, lgd_gridsize = 4) {
   
   # All color schemes subsetted down to select patients
   if (!is.null(select_samples)) {
