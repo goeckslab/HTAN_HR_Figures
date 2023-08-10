@@ -53,7 +53,8 @@ make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd
   # All color schemes subsetted down to select patients
   if (!is.null(select_samples)) {
     
-    colors.treatment <- colors.treatment[names(colors.treatment) %in% c(meta[select_samples, 'CDKi'], meta[select_samples, 'ERi'])]
+    colors.treatment <- colors.treatment[names(colors.treatment) %in% c(meta[select_samples, 'CDKi'], 
+                                                                        meta[select_samples, 'ERi'])]
     colors.response <- colors.response[names(colors.response) %in% meta[select_samples, 'PatientResponse']]
     colors.pam <- colors.pam[names(colors.pam) %in% meta[select_samples, 'PAM50']]
     colors.pam_change <- colors.pam[names(colors.pam) %in% meta[select_samples, 'pamChange']]
@@ -63,39 +64,46 @@ make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd
   }
   
   # Legend for pre-treatment and on-progression with on-progression labeled with asterisk
-  opAstrLgd <- Legend(title = 'Treatment', type = 'points', pch = c(NA,8), at = c('PreTreatment', 'OnProgression'), background = c('white'),
-                      labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  opAstrLgd <- Legend(title = 'Treatment', type = 'points', pch = c(NA,8), 
+                      at = c('PreTreatment', 'OnProgression'), background = c('white'),
+                      labels_gp = gpar(fontsize = lgd_fontsize), 
+                      grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                       title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # Legend for CDK4/6i and ERi treatment (merged with above)
-  onProgLgd <- Legend(labels = names(colors.treatment), legend_gp = gpar(fill = colors.treatment), title = treatment_title, 
-                      nrow = lgd_rows, labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), 
-                      grid_width = unit(lgd_gridsize, 'mm'), title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
-  
+  onProgLgd <- Legend(title = treatment_title, labels = names(colors.treatment), nrow = lgd_rows,
+                      legend_gp = gpar(fill = colors.treatment),  labels_gp = gpar(fontsize = lgd_fontsize), 
+                      grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'), 
+                      title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # Patient response legend
-  responseLgd <- Legend(labels = names(colors.response), legend_gp = gpar(fill = colors.response), title = 'Patient Response', nrow = lgd_rows, 
-                         labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  responseLgd <- Legend(title = 'Patient Response', labels = names(colors.response), nrow = lgd_rows, 
+                        legend_gp = gpar(fill = colors.response), labels_gp = gpar(fontsize = lgd_fontsize), 
+                        grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                          title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # PAM50 annotation legend
-  pamLgd <- Legend(labels = names(colors.pam), legend_gp = gpar(fill = colors.pam), title = 'PAM50', nrow = lgd_rows, 
-                   labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  pamLgd <- Legend(title = 'PAM50', labels = names(colors.pam), nrow = lgd_rows, 
+                   legend_gp = gpar(fill = colors.pam), labels_gp = gpar(fontsize = lgd_fontsize), 
+                   grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                    title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # PAM50 change annotation legend
-  pamChangeLgd <- Legend(labels = names(colors.pam_change), legend_gp = gpar(fill = colors.pam_change), title = 'PAM50', nrow = lgd_rows, 
-                         labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  pamChangeLgd <- Legend(title = 'PAM50', labels = names(colors.pam_change), nrow = lgd_rows, 
+                         legend_gp = gpar(fill = colors.pam_change), labels_gp = gpar(fontsize = lgd_fontsize), 
+                         grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                          title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # Metastatic site legend
-  siteLgd <- Legend(labels = names(colors.site), legend_gp = gpar(fill = colors.site), title = 'Biopsy Site', nrow = lgd_rows, 
-                    labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  siteLgd <- Legend(title = 'Biopsy Site', labels = names(colors.site), nrow = lgd_rows, 
+                    legend_gp = gpar(fill = colors.site), labels_gp = gpar(fontsize = lgd_fontsize), 
+                    grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                     title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # Patient legend
-  patientLgd <- Legend(labels = names(colors.patient), legend_gp = gpar(fill = colors.patient), title = 'Patient ID', nrow = lgd_rows, 
-                       labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
+  patientLgd <- Legend(title = 'Patient ID', labels = names(colors.patient), nrow = lgd_rows,
+                       legend_gp = gpar(fill = colors.patient), labels_gp = gpar(fontsize = lgd_fontsize), 
+                       grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                        title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   
@@ -115,25 +123,33 @@ make_heatmap_annotations <- function(meta) {
   # Treatment legend that also indicates on-progression biopsies
   onProg.idx <- rep(NA, ncol(meta))
   onProg.idx[which(meta$ProgressionStage == 'OnProgression')] <- 8
-  onProgAnno <- HeatmapAnnotation('CDK4/6i' = anno_simple(meta$CDKi, pch = onProg.idx, col = colors.treatment, border = TRUE), show_legend = FALSE, border = TRUE)
+  onProgAnno <- HeatmapAnnotation('CDK4/6i' = anno_simple(meta$CDKi, pch = onProg.idx, 
+                                                          col = colors.treatment, border = TRUE), 
+                                  show_legend = FALSE, border = TRUE)
   
   # Make legend for ERi therapy
-  erAnno <- HeatmapAnnotation(ERi = meta$ERi, show_legend = FALSE, border = TRUE, col = list(ERi = colors.treatment))
+  erAnno <- HeatmapAnnotation(ERi = meta$ERi, show_legend = FALSE, border = TRUE, 
+                              col = list(ERi = colors.treatment))
   
   # Make response annotation object and legend list
-  responseAnno <- HeatmapAnnotation(PatientResponse = meta$PatientResponse, show_legend = FALSE, border = TRUE, col = list(PatientResponse = colors.response))
+  responseAnno <- HeatmapAnnotation(PatientResponse = meta$PatientResponse, show_legend = FALSE, 
+                                    border = TRUE, col = list(PatientResponse = colors.response))
   
   # PAM50 annotations
-  pamAnno <- HeatmapAnnotation(PAM50 = meta$PAM50, show_legend = FALSE, col = list(PAM50 = colors.pam), na_col = 'grey', border = TRUE)
+  pamAnno <- HeatmapAnnotation(PAM50 = meta$PAM50, show_legend = FALSE, na_col = 'grey',
+                               col = list(PAM50 = colors.pam), border = TRUE)
   
   # PAM50 change annotations
-  pamChangeAnno <- HeatmapAnnotation(PAM50 = meta$pamChange, show_legend = FALSE, col = list(PAM50 = colors.pam), na_col = 'grey', border = TRUE)
+  pamChangeAnno <- HeatmapAnnotation(PAM50 = meta$pamChange, show_legend = FALSE, na_col = 'grey', 
+                                     col = list(PAM50 = colors.pam), border = TRUE)
   
   # Color code biopsies by patient
-  patientAnno <- HeatmapAnnotation(PatientID = meta$Patient, show_legend = FALSE, col = list(PatientID = c(colors.patient)), border = TRUE)
+  patientAnno <- HeatmapAnnotation(PatientID = meta$Patient, show_legend = FALSE, border = TRUE, 
+                                   col = list(PatientID = c(colors.patient)))
   
   # Metastatic site annotations
-  siteAnno <- HeatmapAnnotation(BiopsySite = meta$BiopsySite, show_legend = FALSE, col = list(BiopsySite = colors.site), na_col = 'grey', border = TRUE)
+  siteAnno <- HeatmapAnnotation(BiopsySite = meta$BiopsySite, show_legend = FALSE, na_col = 'grey', 
+                                border = TRUE, col = list(BiopsySite = colors.site))
   
   # Make custom column name annotations for working with HTAN patients
   htanAnno <- make_htan_pointers(meta)
@@ -154,6 +170,48 @@ make_heatmap_annotations <- function(meta) {
               'htanNames' = htanNames,
               'biopChangeHTAN' = htanBiopChange))
         
+}
+
+
+# TODO: Rename function; also create separate parameter for legend instead of passing list
+save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), add_anno_title = NULL, 
+                              add_width = 0, add_height = 0, res = NULL, pointsize = 12,
+                              max_width = NULL, lgd_gap = unit(2, 'mm'), lgd_direction = 'horizontal') {
+  
+  # Pull out heatmap and legend objects
+  ht <- ht_objects[[1]]
+  lgd <- ht_objects[[2]]
+  
+  # If no heatmap provided, just make empty one (used if just saving legend to png)
+  if (is.null(ht)) {ht <- Heatmap(matrix(0, nrow = 0, ncol = 1))}
+  
+  # Pack list of legends
+  pd <- packLegend(list = lgd, direction = lgd_direction,
+                   max_width = max_width, gap = lgd_gap)
+  
+  # Draw dummy plot to determine figure size
+  pdf(NULL)
+  dht <- draw(ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', 
+              annotation_legend_list = pd, ht_gap = ht_gap)
+  wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
+  try(dev.off(), silent = TRUE)
+  
+  # Set width, height, and resolution
+  w <- wh[1] + 1.5
+  h <- wh[2]
+  if (is.null(res)) {res <- (w*h)*2}
+  
+  # Extend width and height if needed
+  w <- w + add_width
+  h <- h + add_height
+  
+  # Save as png
+  png(filename = fn, width = w, height = h, units = 'in', 
+      res = res, pointsize = pointsize)
+  draw(ht, annotation_legend_list = pd, heatmap_legend_side = 'bottom', 
+       annotation_legend_side = 'bottom', ht_gap = ht_gap)
+  dev.off()
+  
 }
 
 # Function to create color scheme object for heatmap

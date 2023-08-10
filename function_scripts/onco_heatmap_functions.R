@@ -87,6 +87,7 @@ alter_fun = list(
 
 
 # Function for saving oncoplot as png image
+# TODO: Could probably just use save heatmap function if formmated correctly
 draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
   
   # Draw dummy plot to determine figure size
