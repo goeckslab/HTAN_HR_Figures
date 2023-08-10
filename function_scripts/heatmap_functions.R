@@ -9,6 +9,42 @@
 library(ComplexHeatmap)
 
 
+# Annotation colors
+colors.treatment <- c("Abemaciclib" = "#EE0011FF", 
+                      "Palbociclib" = "#0C5BB0FF", 
+                      "Everolimus" = "#7F8624FF", 
+                      "Fulvestrant" = "#FA6B09FF", 
+                      "Letrozole" = "#15983DFF", 
+                      "Tamoxifen" = "maroon", 
+                      "Post-Abemaciclib" = "#FFC6C7FF", 
+                      "Post-Palbociclib" = "#B7CBFFFF", 
+                      "Post-Everolimus" = "#EBF09C", 
+                      "Post-Fulvestrant" = "#FFE7D4", 
+                      "Post-Letrozole" = "#8EFFBA", 
+                      "Post-Tamoxifen" = "#FFD3E5")
+                      
+colors.response <- c("Responder" = "#11776CFF", 
+                     "Non-responder" = "#94220EFF")  
+
+colors.pam <- c("Basal" = "#A3DA4BFF", 
+                "Her2" = "#E9D738FF", 
+                "LumA" = "#4D709CFF", 
+                "LumB" = "#B91226FF",
+                "LumA:LumB" = "#8AB8CFFF", 
+                "LumB:LumA" = "tomato", 
+                "LumA:Her2" = "#7F8624FF")
+
+colors.site <- c("Bone" = "#C4BB90FF", 
+                 "Liver" = "#5FB233FF", 
+                 "Lymph Node" = "#F19C1FFF")
+
+colors.patient <- c("9-1" = "#F57206FF", 
+                    "9-2" = "#8F2F8BFF", 
+                    "9-3" = "red", 
+                    "9-14" = "darkcyan", 
+                    "9-15" = "#434159FF")
+
+
 # Function for building heatmap annotation legend objects
 make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd_rows = 2,
                                  treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
@@ -17,16 +53,12 @@ make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd
   # All color schemes subsetted down to select patients
   if (!is.null(select_samples)) {
     
-    drug_cols <- drug_cols[names(drug_cols) %in% meta[select_samples, 'Treatment']]
-    
-    # TODO: Change to response colors
-    intrinsic_cols <- intrinsic_cols[names(intrinsic_cols) %in% meta[select_samples, 'PatientResponse']]
-    
-    pam_colors <- pam_colors[names(pam_colors) %in% meta[select_samples, 'PAM50']]
-    pam_change_colors <- pam_change_colors[names(pam_change_colors) %in% meta[select_samples, 'pamChange']]
-    site_colors <- site_colors[names(site_colors) %in% meta[select_samples, 'BiopsySite']]
-    
-    htan_cols <- htan_cols[names(htan_cols) %in% meta[select_samples, 'HTAN']]
+    colors.treatment <- colors.treatment[names(colors.treatment) %in% c(meta[select_samples, 'CDKi'], meta[select_samples, 'ERi'])]
+    colors.response <- colors.response[names(colors.response) %in% meta[select_samples, 'PatientResponse']]
+    colors.pam <- colors.pam[names(colors.pam) %in% meta[select_samples, 'PAM50']]
+    colors.pam_change <- colors.pam[names(colors.pam) %in% meta[select_samples, 'pamChange']]
+    colors.site <- colors.site[names(colors.site) %in% meta[select_samples, 'BiopsySite']]
+    colors.patient <- colors.patient[names(colors.patient) %in% meta[select_samples, 'Patient']]
     
   }
   
@@ -35,46 +67,41 @@ make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd
                       labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                       title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
-  # Legend for CDK4/6i and ERi treatment
-  # TODO: Either bring in function or isoloate here
-  onProgLgd <- make_treatment_heatmap_annotations(meta, select_samples = select_samples, lgd_rows = lgd_rows, 
-                                                  treatment_title = treatment_title, onProgression = TRUE)[[2]]
+  # Legend for CDK4/6i and ERi treatment (merged with above)
+  onProgLgd <- Legend(labels = names(colors.treatment), legend_gp = gpar(fill = colors.treatment), title = treatment_title, 
+                      nrow = lgd_rows, labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), 
+                      grid_width = unit(lgd_gridsize, 'mm'), title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
-  # Make response annotation object and legend list
-  # TODO: Change to responseLgd
-  intrinsicLgd <- Legend(labels = names(intrinsic_cols), legend_gp = gpar(fill = intrinsic_cols), title = 'Patient Response', nrow = lgd_rows, 
+  
+  # Patient response legend
+  responseLgd <- Legend(labels = names(colors.response), legend_gp = gpar(fill = colors.response), title = 'Patient Response', nrow = lgd_rows, 
                          labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                          title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # PAM50 annotation legend
-  pamLgd <- Legend(labels = names(pam_colors), legend_gp = gpar(fill = pam_colors), title = 'PAM50', nrow = lgd_rows, 
+  pamLgd <- Legend(labels = names(colors.pam), legend_gp = gpar(fill = colors.pam), title = 'PAM50', nrow = lgd_rows, 
                    labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                    title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   # PAM50 change annotation legend
-  pamChangeLgd <- Legend(labels = names(pam_change_colors), legend_gp = gpar(fill = pam_change_colors), title = 'PAM50', nrow = lgd_rows, 
+  pamChangeLgd <- Legend(labels = names(colors.pam_change), legend_gp = gpar(fill = colors.pam_change), title = 'PAM50', nrow = lgd_rows, 
                          labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                          title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
-  
-  # Metastatic site annotations
-  siteLgd <- Legend(labels = names(site_colors), legend_gp = gpar(fill = site_colors), title = 'Biopsy Site', nrow = lgd_rows, 
+  # Metastatic site legend
+  siteLgd <- Legend(labels = names(colors.site), legend_gp = gpar(fill = colors.site), title = 'Biopsy Site', nrow = lgd_rows, 
                     labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                     title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
-  
-  
-  # Make HTAN patient color legend
-  if (strip_names) { names(htan_cols) <- gsub('HTA', '', names(htan_cols))}
-  if (rm_duplicate_pair) {htan_cols <- htan_cols[!names(htan_cols) %in% c('HTA9-1_p2', '9-1_p2')]}
-  patientLgd <- Legend(labels = names(htan_cols), legend_gp = gpar(fill = htan_cols), title = 'Patient ID', nrow = lgd_rows, 
+  # Patient legend
+  patientLgd <- Legend(labels = names(colors.patient), legend_gp = gpar(fill = colors.patient), title = 'Patient ID', nrow = lgd_rows, 
                        labels_gp = gpar(fontsize = lgd_fontsize), grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                        title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
   
   return(list('opAstrLgd' = opAstrLgd, 
               'onProgLgd' = onProgLgd,
-              'intrinsicLgd' = intrinsicLgd, # change to responseLgd
+              'responseLgd' = responseLgd, 
               'pamLgd' = pamLgd, 
               'pamChangeLgd' = pamChangeLgd,
               'patientLgd' = patientLgd, 
@@ -88,26 +115,25 @@ make_heatmap_annotations <- function(meta) {
   # Treatment legend that also indicates on-progression biopsies
   onProg.idx <- rep(NA, ncol(meta))
   onProg.idx[which(meta$ProgressionStage == 'OnProgression')] <- 8
-  onProgAnno <- HeatmapAnnotation('CDK4/6i' = anno_simple(meta$Treatment, pch = onProg.idx, col = all_drug_cols, border = TRUE), show_legend = FALSE, border = TRUE)
+  onProgAnno <- HeatmapAnnotation('CDK4/6i' = anno_simple(meta$CDKi, pch = onProg.idx, col = colors.treatment, border = TRUE), show_legend = FALSE, border = TRUE)
   
   # Make legend for ERi therapy
-  erAnno <- HeatmapAnnotation(ERi = meta$ERi, show_legend = FALSE, border = TRUE, col = list(ERi = all_extra_drug_cols))
+  erAnno <- HeatmapAnnotation(ERi = meta$ERi, show_legend = FALSE, border = TRUE, col = list(ERi = colors.treatment))
   
   # Make response annotation object and legend list
-  intrinsicAnno <- HeatmapAnnotation(PatientResponse = meta$PatientResponse, show_legend = FALSE, border = TRUE, col = list(PatientResponse = intrinsic_cols))
+  responseAnno <- HeatmapAnnotation(PatientResponse = meta$PatientResponse, show_legend = FALSE, border = TRUE, col = list(PatientResponse = colors.response))
   
   # PAM50 annotations
-  pamAnno <- HeatmapAnnotation(PAM50 = meta$PAM50, show_legend = FALSE, col = list(PAM50 = pam_colors), na_col = 'grey', border = TRUE)
+  pamAnno <- HeatmapAnnotation(PAM50 = meta$PAM50, show_legend = FALSE, col = list(PAM50 = colors.pam), na_col = 'grey', border = TRUE)
   
   # PAM50 change annotations
-  pamChangeAnno <- HeatmapAnnotation(PAM50 = meta$pamChange, show_legend = FALSE, col = list(PAM50 = pam_change_colors), na_col = 'grey', border = TRUE)
+  pamChangeAnno <- HeatmapAnnotation(PAM50 = meta$pamChange, show_legend = FALSE, col = list(PAM50 = colors.pam), na_col = 'grey', border = TRUE)
   
   # Color code biopsies by patient
-  # TODO: UPDATE TO USE HTAN PATIENT IDs and HTAN COLORS
-  patientAnno <- HeatmapAnnotation(PatientID = meta$Patient, show_legend = FALSE, col = list(PatientID = c(patient_cols)), border = TRUE)
+  patientAnno <- HeatmapAnnotation(PatientID = meta$Patient, show_legend = FALSE, col = list(PatientID = c(colors.patient)), border = TRUE)
   
   # Metastatic site annotations
-  siteAnno <- HeatmapAnnotation(BiopsySite = meta$BiopsySite, show_legend = FALSE, col = list(BiopsySite = site_colors), na_col = 'grey', border = TRUE)
+  siteAnno <- HeatmapAnnotation(BiopsySite = meta$BiopsySite, show_legend = FALSE, col = list(BiopsySite = colors.site), na_col = 'grey', border = TRUE)
   
   # Make custom column name annotations for working with HTAN patients
   htanAnno <- make_htan_pointers(meta)
@@ -119,7 +145,7 @@ make_heatmap_annotations <- function(meta) {
   # Return list of annotation objects  
   return(list('onProgAnno' = onProgAnno, 
               'erAnno' = erAnno,
-              'intrinsicAnno' = intrinsicAnno, # change to "responseAnno"
+              'responseAnno' = responseAnno, # change to "responseAnno"
               'pamAnno' = pamAnno, 
               'pamChangeAnno' = pamChangeAnno,
               'siteAnno' <- siteAnno,

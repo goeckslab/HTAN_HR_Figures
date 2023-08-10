@@ -289,7 +289,7 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta.dat, min_vars = 1,
     
     cnvs.dat <- cnvs.dat[,colnames(cnvs.dat) %in% select_variants,drop = FALSE]
     snvs.dat <- snvs.dat[,colnames(snvs.dat) %in% select_variants,drop = FALSE]
-  
+    
   }   
   
   # Subset down to select samples
@@ -302,7 +302,7 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta.dat, min_vars = 1,
   } else {
     
     meta.sub <- meta.dat
-  
+    
   }
   
   # Create binary matrices for each variant type
@@ -373,7 +373,7 @@ code <- function(column) {
 
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
 build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_title = '', top_anno = NULL, bottom_anno = NULL, 
-                             cor_cols = NULL, cluster_columns = FALSE, cluster_rows = FALSE, 
+                            cor_cols = NULL, cluster_columns = FALSE, cluster_rows = FALSE, 
                             
                             select_samples = NULL,
                             
@@ -443,7 +443,7 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
     
     # Build row annotations for right side of oncoplot
     right_anno <- right_onco_annotations(var_list)  
-                                        
+    
     # Create oncoplot legend (passed to oncoPrint function)
     oncoLgd = list(title = "Alterations", at = names(variant_cols), labels = names(variant_cols), nrow = 3,
                    title_gp = gpar(fontsize = 12, fontface = "bold"), labels_gp = gpar(fontsize = 12))
@@ -664,8 +664,8 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_cnvs.png", sep = '')} else {fn <- NULL}
       oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta.dat, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
-                                    
-                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
+                                     
+                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
                                      select_samples = select_samples, 
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,

@@ -92,24 +92,24 @@ lgds.change <- make_heatmap_legends(meta.htan, select_samples = htan.onProgressi
 # Oncoplot annotations
 onco_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
                                 annotations.hrplus$erAnno %v%
-                                annotations.hrplus$intrinsicAnno %v%
+                                annotations.hrplus$responseAnno %v%
                                 annotations.hrplus$pamAnno %v%
                                 annotations.hrplus$patientAnno %v% 
                                 annotations.hrplus$htanPointer %v% 
                                 annotations.hrplus$htanNames, 
                               list(lgds.htan$opAstrLgd,
                                    lgds.htan$onProgLgd,
-                                   lgds.htan$intrinsicLgd,
+                                   lgds.htan$responseLgd,
                                    lgds.htan$pamLgd))
 
 
 # Annotations for all samples with patient ID annotation
 top_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
                                annotations.hrplus$erAnno %v%
-                               annotations.hrplus$intrinsicAnno, 
+                               annotations.hrplus$responseAnno, 
                              list(lgds.htan$opAstrLgd,
                                   lgds.htan$onProgLgd, 
-                                  lgds.htan$intrinsicLgd))
+                                  lgds.htan$responseLgd))
 btm_annotations.htan <- list(annotations.hrplus$pamAnno %v%
                                annotations.hrplus$patientAnno %v% 
                                annotations.hrplus$htanPointer %v% 
@@ -121,10 +121,10 @@ btm_annotations.htan <- list(annotations.hrplus$pamAnno %v%
 # Annotations for delta heatmaps
 top_annotations.change.htan <- list(annotations.hrplus$onProgAnno %v% 
                                       annotations.hrplus$erAnno %v%
-                                      annotations.hrplus$intrinsicAnno, 
+                                      annotations.hrplus$responseAnno, 
                                     list(lgds.change$opAstrLgd,
                                          lgds.change$onProgLgd, 
-                                         lgds.change$intrinsicLgd))
+                                         lgds.change$responseLgd))
 btm_annotations.change.htan <- list(annotations.hrplus$pamChangeAnno %v%
                                       annotations.hrplus$htanPointer %v% 
                                       annotations.hrplus$biopChangeHTAN, 
@@ -135,10 +135,10 @@ btm_annotations.change.htan <- list(annotations.hrplus$pamChangeAnno %v%
 # Annotations for heatmaps split by patient (doesn't need patient ID annotation)
 top_annotations.split.htan <- list(annotations.hrplus$onProgAnno %v% 
                                      annotations.hrplus$erAnno %v%
-                                     annotations.hrplus$intrinsicAnno, 
+                                     annotations.hrplus$responseAnno, 
                                    list(lgds.htan$opAstrLgd,
                                         lgds.htan$onProgLgd, 
-                                        lgds.htan$intrinsicLgd))
+                                        lgds.htan$responseLgd))
 btm_annotations.split.htan <- list(annotations.hrplus$pamAnno %v%
                                      annotations.hrplus$htanPointer %v% 
                                      annotations.hrplus$htanNames, 
