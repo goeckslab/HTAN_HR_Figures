@@ -174,9 +174,10 @@ make_heatmap_annotations <- function(meta) {
 
 
 # TODO: Rename function; also create separate parameter for legend instead of passing list
-save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), add_anno_title = NULL, 
-                              add_width = 0, add_height = 0, res = NULL, pointsize = 12,
-                              max_width = NULL, lgd_gap = unit(2, 'mm'), lgd_direction = 'horizontal') {
+save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
+                              pointsize = 12, lgd_direction = 'horizontal', 
+                              max_width = NULL, add_anno_title = NULL, add_width = 0, 
+                              add_height = 0, lgd_gap = unit(2, 'mm')) {
   
   # Pull out heatmap and legend objects
   ht <- ht_objects[[1]]
@@ -191,7 +192,8 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), add_anno_t
   
   # Draw dummy plot to determine figure size
   pdf(NULL)
-  dht <- draw(ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', 
+  dht <- draw(ht, heatmap_legend_side = 'bottom', 
+              annotation_legend_side = 'bottom', 
               annotation_legend_list = pd, ht_gap = ht_gap)
   wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
   try(dev.off(), silent = TRUE)
@@ -208,9 +210,39 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), add_anno_t
   # Save as png
   png(filename = fn, width = w, height = h, units = 'in', 
       res = res, pointsize = pointsize)
-  draw(ht, annotation_legend_list = pd, heatmap_legend_side = 'bottom', 
-       annotation_legend_side = 'bottom', ht_gap = ht_gap)
+  draw(ht, annotation_legend_list = pd, ht_gap = ht_gap, 
+       heatmap_legend_side = 'bottom', 
+       annotation_legend_side = 'bottom')
   dev.off()
+  
+}
+
+# Function for creating dendrogram object used for clustering heatmaps
+create_dendrogram <- function(mat, dist_func = 'euclidean', 
+                              clust_type = 'complete', 
+                              reorder_dend = TRUE) {
+  
+  # Only cluster if at least 2 rows, else return FALSE 
+  if (nrow(mat) >= 2) {
+    
+    # Cluster rows/columns
+    dend <- as.dendrogram(hclust(dist(mat, method = dist_func), method = clust_type))
+    
+    # Reorder dendrogram by row/column means
+    if (reorder_dend) {
+      
+      dOrder = -rowMeans(mat, na.rm = T)
+      dend <- reorder(dend, dOrder, agglo.FUN = mean)
+      
+    }
+    
+  } else {
+    
+    dend <- FALSE
+    
+  }
+  
+  return(dend)
   
 }
 
@@ -222,11 +254,11 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
     
     htColors = list(c("navy", "yellow"), c("cyan", "black", "magenta"), 
                     c('navy', 'darkseagreen1', 'goldenrod1', 'red4'))[[numColors-1]]
-  
+    
   } else {
-  
-      numColors <- length(htColors)
-  
+    
+    numColors <- length(htColors)
+    
   }
   
   # Get min/max intesnity limits
