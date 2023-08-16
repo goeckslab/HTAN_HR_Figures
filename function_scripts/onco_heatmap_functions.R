@@ -124,6 +124,24 @@ variant_bar_annotation <- function(var_list) {
 }
 
 
+# Function for creating row annotations for right side of oncoplot
+right_onco_annotations <- function(var_list) {
+  
+  # Manually create alteration type barplots?
+  var_counts <- do.call(cbind, lapply(var_list, function(x) rowSums(x)))
+  
+  print('test')
+  
+  
+  right_anno <- rowAnnotation(var_counts = anno_barplot(var_counts, border = TRUE, width = unit(3, "cm"),
+                                                        gp = gpar(fill = variant_cols[colnames(var_counts)]),
+                                                        axis_param = list(side = 'top', labels_rot = 0)),
+                              show_annotation_name = FALSE)
+  
+  return(right_anno)
+  
+}
+
 
 # Function to make binary versions of each variant type
 #   * Note samples with no CNV or SNV calls are not removed
@@ -345,23 +363,7 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta.dat, min_vars = 1,
   
 }
 
-# Function for creating row annotations for right side of oncoplot
-right_onco_annotations <- function(var_list) {
-  
-  # Manually create alteration type barplots?
-  var_counts <- do.call(cbind, lapply(var_list, function(x) rowSums(x)))
-  
-  print('test')
-  
-  
-  right_anno <- rowAnnotation(var_counts = anno_barplot(var_counts, border = TRUE, width = unit(3, "cm"),
-                                                        gp = gpar(fill = variant_cols[colnames(var_counts)]),
-                                                        axis_param = list(side = 'top', labels_rot = 0)),
-                              show_annotation_name = FALSE)
-  
-  return(right_anno)
-  
-}
+
 
 
 # Try waterfall sort?
@@ -410,8 +412,7 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
   # Set row order
   order_rows <- rownames(biVar)[sort(rowSums(biVar), decreasing = TRUE, index.return = TRUE)$ix]
   
-  # Order categories by highest alteration counbts
-  # TODO: May want to create parameter that overrides and sets specified category order
+  # Order categories by order parameter or by highest count
   if (!is.null(category_table)) { 
     
     if (is.null(cat_order)) {
@@ -598,7 +599,11 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                            select_samples = NULL, select_variants = NULL, cluster_columns = FALSE, column_split = NULL,
                            
                            cluster_rows = FALSE,  ht_height = NULL, ht_width = NULL, 
-                           category_table = NULL, show_pct = TRUE,
+                           
+                           category_table = NULL, 
+                           cat_order = NULL,
+                           
+                           show_pct = TRUE,
                            
                            row_names_side = 'left', pct_side = 'right',
                            
@@ -625,7 +630,6 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
   var_list.all <- var_lists[[1]]
   var_list.cnvs <- var_lists[[2]]
   var_list.snvs <- var_lists[[3]]
-  var_list.missing <- var_lists[[4]]
   meta.sub <- var_lists[[5]]
   
   
@@ -648,7 +652,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                                     
                                     
                                     keep_original_column_order = keep_original_column_order,
-                                    category_table = category_table, 
+                                    category_table = category_table, cat_order = cat_order,
                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
                                     
                                     ht_height = ht_height, ht_width = ht_width) 
@@ -669,7 +673,8 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
                                      select_samples = select_samples, 
                                      keep_original_column_order = keep_original_column_order,
-                                     category_table = category_table, show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
+                                     category_table = category_table, cat_order = cat_order,
+                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     
@@ -686,7 +691,8 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
                                      select_samples = select_samples, 
                                      keep_original_column_order = keep_original_column_order,
-                                     category_table = category_table, show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
+                                     category_table = category_table, cat_order = cat_order,
+                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     

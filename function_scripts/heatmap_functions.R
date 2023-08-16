@@ -172,6 +172,43 @@ make_heatmap_annotations <- function(meta) {
         
 }
 
+# Function to subset annotation objects to select samples
+update_annotations <- function(meta, annotation_objects) {
+  
+  # Pull out annotation from list and leave legend
+  anno <- annotation_objects[[1]]
+  
+  # Make sure annotation object exists
+  if (!is.null(anno)) {
+    
+    # If only one annotation, just subset
+    if (length(anno) == 1) {
+      
+      anno_update <- anno[meta$AnnoIndex,]
+    
+    }
+    
+    # If multiple annotations, start new object, iteratively subset and concatenate 
+    else {
+      
+      anno_update <- NULL
+      
+      for (i in 1:length(anno)) {
+      
+        anno_update <- anno_update %v% anno[i][,meta$AnnoIndex]
+        
+      }
+      
+    }
+    
+    # Replace with subsetted annotations
+    annotation_objects[[1]] <- anno_update
+  
+  }
+  
+  return(annotation_objects)
+  
+}
 
 # TODO: Rename function; also create separate parameter for legend instead of passing list
 save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
