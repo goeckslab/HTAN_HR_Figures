@@ -210,6 +210,79 @@ update_annotations <- function(meta, annotation_objects) {
   
 }
 
+# Function that organizes list of legends in a set order for plotting with heatmaps
+make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
+  
+  # Row annotation legend goes on left followed by heatmap legend
+  if (!(is.null(row_lgd_list))) {
+    
+    lgd_list <- row_lgd_list
+    l <- length(lgd_list)
+    lgd_list[[l + 1]] <- ht_lgd
+    
+    # Then add top legends to list
+    l <- length(lgd_list)
+    if (!(is.null(top_lgd_list))) {
+      
+      for (i in 1:length(top_lgd_list)) {
+        
+        lgd_list[[l + i]] <- top_lgd_list[[i]]
+        
+      }  
+      
+    }
+    
+    # Then add bottom legends to list
+    l <- length(lgd_list)
+    if (!(is.null(btm_lgd_list))) {
+      
+      for (i in 1:length(btm_lgd_list)) {
+        
+        lgd_list[[l + i]] <- btm_lgd_list[[i]]
+        
+      }  
+      
+    }
+    
+  } 
+  
+  # If no row annotation, top annotation goes on left followed by heatmap legend
+  else { 
+    
+    if (!(is.null(top_lgd_list))) {
+      
+      lgd_list <- top_lgd_list
+      l <- length(lgd_list)
+      lgd_list[[l + 1]] <- ht_lgd
+      
+    } 
+    
+    # If not top annotation, start with heatmap legend
+    else {
+      
+      lgd_list <- list(ht_lgd)
+      
+    } 
+    
+    # Then add bottom legends to list
+    l <- length(lgd_list)
+    if (!(is.null(btm_lgd_list))) {
+      
+      for (i in 1:length(btm_lgd_list)) {
+        
+        lgd_list[[l + i]] <- btm_lgd_list[[i]]
+        
+      }  
+      
+    }
+    
+  }
+  
+  return(lgd_list)
+  
+}
+
+
 # TODO: Rename function; also create separate parameter for legend instead of passing list
 save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
                               pointsize = 12, lgd_direction = 'horizontal', 

@@ -1,5 +1,13 @@
 
 
+# --------------------------------------------------------------------------
+#
+#     FUNCTIONS FOR CREATING ONCOPLOTS USING COMPLEXHEATMAP
+# 
+# --------------------------------------------------------------------------
+
+library(ComplexHeatmap)
+
 
 # Set color scheme for variant types
 variant_cols <- c('Gain' = "#E31A1C", 
@@ -299,7 +307,7 @@ variant_matrix_lists <- function(biMats, cnv_types, snv_types) {
 
 # A convienence function for processing variant data into lists of 
 #   binary matrices suitable for oncoprint and other functions
-var_list_pipeline <- function(cnvs.dat, snvs.dat, meta.dat, min_vars = 1, 
+var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, min_vars = 1, 
                               select_samples = NULL, select_variants = NULL) {
   
   # Select only specific variants if specified
@@ -315,11 +323,11 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta.dat, min_vars = 1,
     
     cnvs.dat <- cnvs.dat[select_samples,,drop=FALSE]
     snvs.dat <- snvs.dat[select_samples,,drop=FALSE]
-    meta.sub <- meta.dat[select_samples,,drop=FALSE]
+    meta.sub <- meta[select_samples,,drop=FALSE]
     
   } else {
     
-    meta.sub <- meta.dat
+    meta.sub <- meta
     
   }
   
@@ -374,7 +382,9 @@ code <- function(column) {
 
 
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
-build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_title = '', top_anno = NULL, bottom_anno = NULL, 
+build_oncoprint <- function(var_list, meta, 
+                            
+                            fn = NULL, column_title = '', top_anno = NULL, bottom_anno = NULL, 
                             cor_cols = NULL, cluster_columns = FALSE, cluster_rows = FALSE, 
                             
                             select_samples = NULL,
@@ -395,7 +405,7 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
   if (!is.null(category_table)) {
     
     var.df <- data.frame(Gene = rownames(biVar))
-    category_table <- var.df %>% left_join(category_table)
+    category_table <- left_join(var.df, category_table)
     rownames(category_table) <- category_table$Gene
     category_table <- category_table[rownames(biVar),]
     split_rows <- category_table[,2]
@@ -428,14 +438,14 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
   if (nrow(biVar) > 0) {
     
     # Subset top_annotations if provided
-    meta.dat$AnnoIndex <- 1:nrow(meta.dat)
-    top_anno <- update_annotations(meta.dat[colnames(biVar),], top_anno)
-    bottom_anno <- update_annotations(meta.dat[colnames(biVar),], bottom_anno)
+    meta$AnnoIndex <- 1:nrow(meta)
+    top_anno <- update_annotations(meta[colnames(biVar),], top_anno)
+    bottom_anno <- update_annotations(meta[colnames(biVar),], bottom_anno)
     
     # Split oncoplot by phenotype
     if (!is.null(column_split)) {
       
-      column_split <- meta.dat[colnames(biVar),column_split]
+      column_split <- meta[colnames(biVar),column_split]
       
       # Set order if provided
       if (!is.null(column_split_order)) {
@@ -454,8 +464,8 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
                    title_gp = gpar(fontsize = 12, fontface = "bold"), labels_gp = gpar(fontsize = 12))
     
     # Same legend but for drawing png image
-    varLgd <- Legend(labels = names(var_list), legend_gp = gpar(fill = variant_cols[names(var_list)]), 
-                     title = oncoLgd[['title']], nrow = oncoLgd[['nrow']],
+    varLgd <- Legend(title = oncoLgd[['title']], labels = names(var_list), nrow = oncoLgd[['nrow']],
+                     legend_gp = gpar(fill = variant_cols[names(var_list)]), 
                      title_gp = oncoLgd[['title_gp']], labels_gp = oncoLgd[['labels_gp']])
     
     # Organize all legends into single list and pack
@@ -593,7 +603,7 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
 
 # Main function for formatting alteration data and generating 
 #   oncoplots using oncoPrint() from ComplexHeatmap
-make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL, 
+make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL, 
                            top_anno = NULL, bottom_anno = NULL, 
                            cor_pheno = NULL, cor_assignments = NULL, cor_cols = NULL, 
                            
@@ -632,7 +642,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
   }
   
   # Process all data into unified lists for oncoprint
-  var_lists <- var_list_pipeline(cnvs.dat, snvs.dat, meta.dat, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
+  var_lists <- var_list_pipeline(cnvs.dat, snvs.dat, meta, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
   var_list.all <- var_lists[[1]]
   var_list.cnvs <- var_lists[[2]]
   var_list.snvs <- var_lists[[3]]
@@ -648,7 +658,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
     if (nrow(do.call(pmax,var_list.all)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_all.png", sep = '')} else {fn <- NULL}
-      oncoHT.all <- build_oncoprint(var_list.all, meta.dat, meta.sub, 
+      oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, 
                                     fn = fn, 
                                     column_title = column_title, 
                                     top_anno = top_anno, bottom_anno = bottom_anno, 
@@ -676,7 +686,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
     if (nrow(do.call(pmax,var_list.cnvs)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_cnvs.png", sep = '')} else {fn <- NULL}
-      oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta.dat, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
+      oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
@@ -698,7 +708,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
     if (nrow(do.call(pmax,var_list.snvs)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_snvs.png", sep = '')} else {fn <- NULL}
-      oncoHT.snvs <- build_oncoprint(var_list.snvs, meta.dat, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
+      oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
@@ -716,7 +726,13 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
   
   
   # Return oncoplot objects
-  if (return_objects) {return(list(oncoHT.all, oncoHT.cnvs, oncoHT.snvs, oncoHT.missing))}
+  if (return_objects) {
+    
+    return(list(oncoHT.all, 
+                oncoHT.cnvs, 
+                oncoHT.snvs))
+    
+  }
   
 }
 
