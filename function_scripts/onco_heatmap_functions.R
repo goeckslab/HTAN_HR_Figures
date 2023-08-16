@@ -111,11 +111,14 @@ draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
 }
 
 
-# Function to quantify sample variant counts for list of variant matrices and create heatmap column annotation
-variant_bar_annotation <- function(var_list) {
+# Function for creating bar annotation showing column counts of variant types
+onco_column_anno <- function(var_list) {
   
-  HeatmapAnnotation(cbar = anno_barplot(sapply(var_list, function(x) apply(x, 2, sum)), 
-                                        height = unit(20, 'mm'), border = FALSE,
+  # Compute column counts
+  var_counts <- sapply(var_list, function(x) apply(x, 2, sum))
+  
+  # Make annotation object and return
+  HeatmapAnnotation(cbar = anno_barplot(var_counts, height = unit(20, 'mm'), border = FALSE,
                                         gp = gpar(fill = variant_cols[names(var_list)], 
                                                   col = variant_cols[names(var_list)])), 
                     show_annotation_name = FALSE) %>%
@@ -123,22 +126,18 @@ variant_bar_annotation <- function(var_list) {
   
 }
 
-
-# Function for creating row annotations for right side of oncoplot
-right_onco_annotations <- function(var_list) {
+# Function for creating bar annotation showing row counts of variant types
+onco_row_anno <- function(var_list) {
   
-  # Manually create alteration type barplots?
-  var_counts <- do.call(cbind, lapply(var_list, function(x) rowSums(x)))
+  # Compute row counts
+  var_counts <- sapply(var_list, function(x) apply(x, 1, sum))
   
-  print('test')
-  
-  
-  right_anno <- rowAnnotation(var_counts = anno_barplot(var_counts, border = TRUE, width = unit(3, "cm"),
-                                                        gp = gpar(fill = variant_cols[colnames(var_counts)]),
-                                                        axis_param = list(side = 'top', labels_rot = 0)),
-                              show_annotation_name = FALSE)
-  
-  return(right_anno)
+  # Make annotation object and return
+  rowAnnotation(rbar = anno_barplot(var_counts, border = TRUE, width = unit(3, "cm"),
+                                    gp = gpar(fill = variant_cols[colnames(var_counts)]),
+                                    axis_param = list(side = 'top', labels_rot = 0)),
+                show_annotation_name = FALSE) %>%
+    return()
   
 }
 
@@ -381,7 +380,7 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
                             select_samples = NULL,
                             
                             
-                            column_order = NULL, column_split = NULL, 
+                            column_order = NULL, column_split = NULL, column_split_order = NULL,
                             
                             category_table = NULL, cat_order = NULL,
                             
@@ -438,13 +437,17 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
       
       column_split <- meta.dat[colnames(biVar),column_split]
       
-      column_split <- factor(column_split, levels = c("HTA9-1", "HTA9-1_p2", "HTA9-2", "HTA9-3", "HTA9-14", 
-                                                      "HTA9-15"))
-      
+      # Set order if provided
+      if (!is.null(column_split_order)) {
+        
+        column_split <- factor(column_split, levels = column_split_order)
+        
+      }
+
     }
     
     # Build row annotations for right side of oncoplot
-    right_anno <- right_onco_annotations(var_list)  
+    right_anno <- onco_row_anno(var_list)  
     
     # Create oncoplot legend (passed to oncoPrint function)
     oncoLgd = list(title = "Alterations", at = names(variant_cols), labels = names(variant_cols), nrow = 3,
@@ -531,11 +534,11 @@ build_oncoprint <- function(var_list, meta.dat, meta.sub, fn = NULL, column_titl
         faux_mat <- matrix(nrow = 0, ncol = ncol(biVar))
         colnames(faux_mat) <- colnames(biVar)
         
-        top_anno <- variant_bar_annotation(var_list) %v% top_anno[[1]]
+        top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
         
       } else {
         
-        top_anno <- variant_bar_annotation(var_list) %v% top_anno[[1]]
+        top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
         
       }
       
@@ -596,12 +599,15 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                            
                            column_title = NULL, min_vars = 1, 
                            
-                           select_samples = NULL, select_variants = NULL, cluster_columns = FALSE, column_split = NULL,
+                           select_samples = NULL, select_variants = NULL, cluster_columns = FALSE, 
                            
                            cluster_rows = FALSE,  ht_height = NULL, ht_width = NULL, 
                            
                            category_table = NULL, 
                            cat_order = NULL,
+                           
+                           column_split = NULL,
+                           column_split_order = NULL,
                            
                            show_pct = TRUE,
                            
@@ -647,7 +653,10 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
                                     column_title = column_title, 
                                     top_anno = top_anno, bottom_anno = bottom_anno, 
                                     
-                                    fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
+                                    fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
+                                    
+                                    column_split = column_split, column_split_order = column_split_order,
+                                    
                                     select_samples = select_samples, 
                                     
                                     
@@ -670,7 +679,10 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
       oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta.dat, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
-                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
+                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
+                                     
+                                     column_split = column_split, column_split_order = column_split_order,
+                                     
                                      select_samples = select_samples, 
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
@@ -688,7 +700,10 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta.dat, pre = NULL,
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_snvs.png", sep = '')} else {fn <- NULL}
       oncoHT.snvs <- build_oncoprint(var_list.snvs, meta.dat, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
-                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, column_split = column_split,
+                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
+                                     
+                                     column_split = column_split, column_split_order = column_split_order,
+                                     
                                      select_samples = select_samples, 
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
