@@ -470,7 +470,7 @@ build_oncoprint <- function(var_list, meta,
     
     # Organize all legends into single list and pack
     lgd_list <- make_legend_list(row_lgd_list = NULL, top_lgd_list = top_anno[[2]], 
-                                 ht_lgd = varLgd, bottom_lgd_list = bottom_anno[[2]])
+                                 ht_lgd = varLgd, btm_lgd_list = bottom_anno[[2]])
     pd <- packLegend(list = lgd_list, direction = 'horizontal', column_gap = unit(2, 'mm'), 
                      max_width = unit(13, 'in'))
     
@@ -661,14 +661,16 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
   }
   
   # Process all data into unified lists for oncoprint
-  var_lists <- var_list_pipeline(cnvs.dat, snvs.dat, meta, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
+  var_lists <- var_list_pipeline(#cnvs.dat, snvs.dat, 
+                                 t(cnvs.dat), t(snvs.dat), 
+                                 meta, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
   var_list.all <- var_lists[[1]]
   var_list.cnvs <- var_lists[[2]]
   var_list.snvs <- var_lists[[3]]
   meta.sub <- var_lists[[5]]
   
   
-  
+  print(var_lists)
   
   
   # ALL VARIANTS

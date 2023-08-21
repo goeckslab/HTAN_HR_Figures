@@ -21,13 +21,16 @@ source('function_scripts/onco_heatmap_functions.R')
 #
 ###################################
 
-source_dr <- '/Users/eggerj/OneDrive - Oregon Health & Science University/SMMART_HR+/Manuscript/Supp-Tables-Data/source_data'
+source_dir <- '/Users/eggerj/OneDrive - Oregon Health & Science University/SMMART_HR+/Manuscript/Supp-Tables-Data/source_data'
 
 # Meta table
+meta.htan <- load_meta(fn.dir = source_dir)
 
+# Copy number alterations (DNA-seq) 
+cnvs.htan <- load_cnvs(meta.htan, fn.dir = source_dir)
 
-# Genomic alterations (DNA-seq) 
-load_htan_variants()
+# Single nucleotide variants (DNA-seq) 
+snvs.htan <- load_snvs(meta.htan, fn.dir = source_dir)
 
 # GSVA enrichment scores (RNA-seq)
 
@@ -94,13 +97,13 @@ lgds.change <- make_heatmap_legends(meta.htan, select_samples = htan.onProgressi
 
 
 # Oncoplot annotations
-onco_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
-                                annotations.hrplus$erAnno %v%
-                                annotations.hrplus$responseAnno %v%
-                                annotations.hrplus$pamAnno %v%
-                                annotations.hrplus$patientAnno %v% 
-                                annotations.hrplus$htanPointer %v% 
-                                annotations.hrplus$htanNames, 
+onco_annotations.htan <- list(annotations.htan$onProgAnno %v% 
+                                annotations.htan$erAnno %v%
+                                annotations.htan$responseAnno %v%
+                                annotations.htan$pamAnno %v%
+                                annotations.htan$patientAnno %v% 
+                                annotations.htan$htanPointer %v% 
+                                annotations.htan$sampleAnno, 
                               list(lgds.htan$opAstrLgd,
                                    lgds.htan$onProgLgd,
                                    lgds.htan$responseLgd,
@@ -108,44 +111,44 @@ onco_annotations.htan <- list(annotations.hrplus$onProgAnno %v%
 
 
 # Annotations for all samples with patient ID annotation
-top_annotations.htan <- list(annotations.hrplus$onProgAnno %v% 
-                               annotations.hrplus$erAnno %v%
-                               annotations.hrplus$responseAnno, 
+top_annotations.htan <- list(annotations.htan$onProgAnno %v% 
+                               annotations.htan$erAnno %v%
+                               annotations.htan$responseAnno, 
                              list(lgds.htan$opAstrLgd,
                                   lgds.htan$onProgLgd, 
                                   lgds.htan$responseLgd))
-btm_annotations.htan <- list(annotations.hrplus$pamAnno %v%
-                               annotations.hrplus$patientAnno %v% 
-                               annotations.hrplus$htanPointer %v% 
-                               annotations.hrplus$htanNames, 
+btm_annotations.htan <- list(annotations.htan$pamAnno %v%
+                               annotations.htan$patientAnno %v% 
+                               annotations.htan$htanPointer %v% 
+                               annotations.htan$sampleAnno, 
                              list(lgds.htan$pamLgd))
 
 
 
 # Annotations for delta heatmaps
-top_annotations.change.htan <- list(annotations.hrplus$onProgAnno %v% 
-                                      annotations.hrplus$erAnno %v%
-                                      annotations.hrplus$responseAnno, 
+top_annotations.change.htan <- list(annotations.htan$onProgAnno %v% 
+                                      annotations.htan$erAnno %v%
+                                      annotations.htan$responseAnno, 
                                     list(lgds.change$opAstrLgd,
                                          lgds.change$onProgLgd, 
                                          lgds.change$responseLgd))
-btm_annotations.change.htan <- list(annotations.hrplus$pamChangeAnno %v%
-                                      annotations.hrplus$htanPointer %v% 
-                                      annotations.hrplus$biopChangeHTAN, 
+btm_annotations.change.htan <- list(annotations.htan$pamChangeAnno %v%
+                                      annotations.htan$htanPointer %v% 
+                                      annotations.htan$biopPairAnno, 
                                     list(lgds.change$pamChangeLgd))
 
 
 
 # Annotations for heatmaps split by patient (doesn't need patient ID annotation)
-top_annotations.split.htan <- list(annotations.hrplus$onProgAnno %v% 
-                                     annotations.hrplus$erAnno %v%
-                                     annotations.hrplus$responseAnno, 
+top_annotations.split.htan <- list(annotations.htan$onProgAnno %v% 
+                                     annotations.htan$erAnno %v%
+                                     annotations.htan$responseAnno, 
                                    list(lgds.htan$opAstrLgd,
                                         lgds.htan$onProgLgd, 
                                         lgds.htan$responseLgd))
-btm_annotations.split.htan <- list(annotations.hrplus$pamAnno %v%
-                                     annotations.hrplus$htanPointer %v% 
-                                     annotations.hrplus$htanNames, 
+btm_annotations.split.htan <- list(annotations.htan$pamAnno %v%
+                                     annotations.htan$htanPointer %v% 
+                                     annotations.htan$sampleAnno, 
                                    list(lgds.htan$pamLgd))
 
 
@@ -170,9 +173,9 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 # TODO: Test when select_samples = NULL
 
 # Oncoplot of select variants from relevant pathways with ordered columns
-make_oncoplots(cnvs.hrplus, 
-               snvs.hrplus,
-               meta.hrplus,
+make_oncoplots(cnvs.htan, 
+               snvs.htan,
+               meta.htan,
                select_samples = htan.paired,
                
                select_variants = dna_cats.htan$Gene,

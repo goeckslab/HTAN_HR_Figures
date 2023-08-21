@@ -21,7 +21,11 @@ colors.treatment <- c("Abemaciclib" = "#EE0011FF",
                       "Post-Everolimus" = "#EBF09C", 
                       "Post-Fulvestrant" = "#FFE7D4", 
                       "Post-Letrozole" = "#8EFFBA", 
-                      "Post-Tamoxifen" = "#FFD3E5")
+                      "Post-Tamoxifen" = "#FFD3E5",
+                      'Pre-Palbociclib' = 'white',
+                      'Pre-Abemaciclib' = 'white',
+                      'Pre-Fulvestrant' = 'white',
+                      'Pre-Letrozole' = 'white')
                       
 colors.response <- c("Responder" = "#11776CFF", 
                      "Non-responder" = "#94220EFF")  
@@ -46,7 +50,7 @@ colors.patient <- c("9-1" = "#F57206FF",
 
 
 # Function for building heatmap annotation legend objects
-make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd_rows = 2,
+make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
                                  treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
                                  lgd_fontsize = 12, lgd_gridsize = 4) {
   
@@ -117,6 +121,36 @@ make_heatmap_legends <- function(samples_table, meta, select_samples = NULL, lgd
   
 }
 
+# Function to make column ID annotations for heatmaps
+make_heatmap_columnIDs <- function(meta) {
+  
+  # Either mark sample with asterisk or use pipe as arrow to sample name
+  #sample_marker <- rep(NA, nrow(meta))
+  #sample_marker[which(!is.na(meta[,'HTAN']))] <- '|'
+  
+  # Create annotation for pointing to column names
+  pointer <- HeatmapAnnotation(Sample = anno_simple(rep('0', nrow(meta)), pch = rep('|', nrow(meta)), 
+                                                    pt_gp = gpar(col = "black", fill = 'white'), 
+                                                    pt_size = unit(5, "mm"),col = c('0' = 'white')),
+                               show_annotation_name = FALSE)
+  
+  # Sample IDs
+  sampleIDs <- as.character(meta[,'Sample'])
+  sampleIDs <- gsub('HTA', '', sampleIDs)
+  sampleIDs <- gsub('_', ' ', sampleIDs)
+  anno.sIDs <- HeatmapAnnotation(cn = anno_text(sampleIDs, rot = 50))
+  
+  # Patient IDs with biopsy pairs
+  pIDpairs <- as.character(meta[,'BiopsyChange.Drug'])
+  anno.pIDpairs <- HeatmapAnnotation(cn = anno_text(pIDpairs, rot = 50))
+  
+  # Return annotations
+  return(list('pointer' = pointer, 
+              'anno.sIDs' = anno.sIDs, 
+              'anno.pIDpairs' = anno.pIDpairs))
+  
+}
+
 # Convenience function to create all cohort heatmap annotations (except assay availability annotations)
 make_heatmap_annotations <- function(meta) {
   
@@ -152,11 +186,10 @@ make_heatmap_annotations <- function(meta) {
                                 border = TRUE, col = list(BiopsySite = colors.site))
   
   # Make custom column name annotations for working with HTAN patients
-  htanAnno <- make_htan_pointers(meta)
-  htanPointer <- htanAnno[['pointer']]
-  htanNames <- htanAnno[['colNames']]
-  htanPIDs = htanAnno[['patientNames']] # Might not need anymore
-  htanBiopChange = htanAnno[['biopChange']]
+  colAnno <- make_heatmap_columnIDs(meta)
+  pointers <- colAnno[['pointers']]
+  anno.sIDs <- colAnno[['anno.sIDs']]
+  anno.pIDpairs <- colAnno[['anno.pIDpairs']]
   
   # Return list of annotation objects  
   return(list('onProgAnno' = onProgAnno, 
@@ -166,9 +199,9 @@ make_heatmap_annotations <- function(meta) {
               'pamChangeAnno' = pamChangeAnno,
               'siteAnno' <- siteAnno,
               'patientAnno' = patientAnno,
-              'htanPointer' = htanPointer,
-              'htanNames' = htanNames,
-              'biopChangeHTAN' = htanBiopChange))
+              'htanPointer' = pointers,
+              'sampleAnno' = anno.sIDs,
+              'biopPairAnno' = anno.pIDpairs))
         
 }
 
