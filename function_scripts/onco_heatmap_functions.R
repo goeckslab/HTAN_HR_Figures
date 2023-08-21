@@ -469,8 +469,10 @@ build_oncoprint <- function(var_list, meta,
                      title_gp = oncoLgd[['title_gp']], labels_gp = oncoLgd[['labels_gp']])
     
     # Organize all legends into single list and pack
-    lgd_list <- make_legend_list(row_lgd_list = NULL, top_lgd_list = top_anno[[2]], ht_lgd = varLgd, bottom_lgd_list = bottom_anno[[2]])
-    pd <- packLegend(list = lgd_list, direction = 'horizontal', column_gap = unit(2, 'mm'), max_width = unit(13, 'in'))
+    lgd_list <- make_legend_list(row_lgd_list = NULL, top_lgd_list = top_anno[[2]], 
+                                 ht_lgd = varLgd, bottom_lgd_list = bottom_anno[[2]])
+    pd <- packLegend(list = lgd_list, direction = 'horizontal', column_gap = unit(2, 'mm'), 
+                     max_width = unit(13, 'in'))
     
     # So barplots aren't automatically created
     if (is.null(top_anno[[1]])) {
@@ -483,19 +485,29 @@ build_oncoprint <- function(var_list, meta,
       
     }
     
+    # Create faux annotations so they aren't automatically created
     faux_top_anno <- HeatmapAnnotation(foo = anno_empty(border = FALSE, height = faux_height))
     faux_row_anno <- rowAnnotation(foo = anno_empty(border = FALSE, height = unit(.000001, "mm")))
     
     # Set dimensions of main heatmap if not specified
     if (is.null(ht_height)) {
+      
       if (nrow(biVar) > 15) {
-        ht_height <- unit(11, 'in')
+      
+          ht_height <- unit(11, 'in')
+      
       } else {
-        ht_height <- unit(4, 'in')
+      
+          ht_height <- unit(4, 'in')
+    
       }
+      
     }
+    
     if (is.null(ht_width)) {
+      
       ht_width <- unit(18, 'in')
+    
     }
     
     # Create initial set of arguments for oncoPrint
@@ -527,7 +539,9 @@ build_oncoprint <- function(var_list, meta,
       top_anno <- Heatmap(matrix(nrow = 0, ncol = ncol(biVar)), heatmap_width = ht_width, 
                           cluster_columns = create_dendrogram(t(biVar))) %v% top_anno[[1]]
       
-    } else{  
+    } 
+    
+    else {  
       
       if (!is.null(column_split)) {
         
@@ -584,10 +598,15 @@ build_oncoprint <- function(var_list, meta,
     
     # Keep original column order when returning
     if (keep_original_column_order) {
+      
       onco_args[['column_order']] <- 1:ncol(var_list[[1]])
+    
     }
     
+    # Hide row dendrogram
     onco_args[['show_row_dend']] <- FALSE
+    
+    # Run oncoPrint() with list of parameters
     oncoHT <- invoke(oncoPrint, .args = onco_args)
     
     return(list(oncoHT,varLgd))

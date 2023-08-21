@@ -7,8 +7,10 @@
 #######################################################################################
 
 # Source function libraries
-source('function_scripts/heatmap_functions.R')
 
+source('function_scripts/heatmap_functions.R')
+source('function_scripts/load_marker_sets.R')
+source('function_scripts/onco_heatmap_functions.R')
 
 
 
@@ -19,11 +21,13 @@ source('function_scripts/heatmap_functions.R')
 #
 ###################################
 
+source_dr <- '/Users/eggerj/OneDrive - Oregon Health & Science University/SMMART_HR+/Manuscript/Supp-Tables-Data/source_data'
+
 # Meta table
 
 
 # Genomic alterations (DNA-seq) 
-
+load_htan_variants()
 
 # GSVA enrichment scores (RNA-seq)
 

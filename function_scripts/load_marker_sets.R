@@ -343,4 +343,4 @@ ppw_cats.htan <- list('Cell Cycle' = c("Cell_cycle_progression",
                      'PI3K/AKT/mTOR' = c("PI3K_Akt", 
                                          "TSC_mTOR"))
 
-ppw_cats.htan <- make_category_table(pw_cats.rppa, 'Pathway')
+ppw_cats.htan <- make_category_table(ppw_cats.htan, 'Pathway')
