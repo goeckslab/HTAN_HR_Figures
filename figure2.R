@@ -7,7 +7,7 @@
 #######################################################################################
 
 # Source function libraries
-
+source('function_scripts/load_htan_data.R')
 source('function_scripts/heatmap_functions.R')
 source('function_scripts/load_marker_sets.R')
 source('function_scripts/onco_heatmap_functions.R')
@@ -126,6 +126,7 @@ btm_annotations.htan <- list(annotations.htan$pamAnno %v%
 
 
 # Annotations for delta heatmaps
+# TODO: May not have to define separate annotations if all legends will be merged 
 top_annotations.change.htan <- list(annotations.htan$onProgAnno %v% 
                                       annotations.htan$erAnno %v%
                                       annotations.htan$responseAnno, 
@@ -194,12 +195,12 @@ make_oncoplots(cnvs.htan,
 
 
 
-##########################################################################
+#################################################################################
 #
-#  FIGURE 2B: TRANSCRIPTIONAL GENE SET VARIATION ANALYSIS (GSVA) OF 
+#  FIGURE 2B: TRANSCRIPTIONAL GENE SET VARIATION ANALYSIS (GSVA) OF INTRINSIC
 #             PATHWAYS DURING CDK4/6I THERAPY AND PROGRESSION
 #
-##########################################################################
+#################################################################################
 
 # Intrinsic pathways from Mann-Whitney test (p < 0.1)
 gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT", 
