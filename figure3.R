@@ -147,37 +147,38 @@ make_heatmap(gsva.htan,
 
 ##########################################################################
 #
-#  FIGURE 3B: TRANSCRIPTIONAL GENE SET VARIATION ANALYSIS (GSVA) OF 
-#             PATHWAYS DURING CDK4/6I THERAPY AND PROGRESSION
+#  FIGURE 3B: INTEGRATED HEATMAP OF EXTRINSIC RNA AND PROTEIN 
+#             CHANGES DURING CDK4/6I THERAPY AND PROGRESSION
 #
 ##########################################################################
 
 
 
 
-###########################################################################
+###############################################################################################
 #
-#  FIGURE 3C: INTEGRATED HEATMAP OF INTRINSIC RNA AND PROTEIN 
-#             CHANGES DURING CDK4/6I THERAPY AND PROGRESSION
+#  FIGURE 3C: Cell densities reported for all CD45+ immune cells and individual immune 
+#             cell type populations across pre-treatment (Bx1, white) and on-progression 
+#             (Bx2, dark grey) biopsies for all biopsy pairs using mIHC
 #
-###########################################################################
+###############################################################################################
 
 
 
-###########################################################################
+#####################################################################################
 #
-#  FIGURE 3D: INTRINSIC PROTEOMIC PATHWAY SIGNALING 
-#             DURING CDK4/6I THERAPY AND PROGRESSION
+#  FIGURE 3D: Psuedocolored mIHC whole slide image and select regions of interest 
+#             of 9-15 Bx2 showing spatial heterogeneity of CD8 marker (magenta)
 #
-###########################################################################
+#####################################################################################
 
 
 
-#############################################################################################
+####################################################################################
 #
-#  FIGURE 3E: VIOLIN PLOTS SHOWING DISTRIBUTIONS OF PER-CELL CHROMATIC ACCESSIBILITY 
-#             ENRICHMENT SCORES FOR INTRINSIC PATHWAYS FROM SCIATAC-SEQ
+#  FIGURE 3E: Spatial heterogeneity and cytotoxic function of 
+#             CD8+ T cells during CDK4/6i therapy and progression
 #
-#############################################################################################
+####################################################################################
 
 
