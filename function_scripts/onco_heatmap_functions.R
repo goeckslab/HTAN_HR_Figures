@@ -382,21 +382,17 @@ code <- function(column) {
 
 
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
-build_oncoprint <- function(var_list, meta, 
+build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, column_title = '', 
                             
-                            fn = NULL, column_title = '', top_anno = NULL, bottom_anno = NULL, 
-                            cor_cols = NULL, cluster_columns = FALSE, cluster_rows = FALSE, 
-                            
-                            select_samples = NULL,
-                            
-                            
+                            top_anno = NULL, bottom_anno = NULL, 
+                            cluster_columns = FALSE, cluster_rows = FALSE, 
                             column_order = NULL, column_split = NULL, column_split_order = NULL,
                             
                             category_table = NULL, cat_order = NULL,
                             
-                            show_pct = TRUE,
-                            pct_side = 'right', row_names_side = 'left',
-                            keep_original_column_order = TRUE, ht_height = NULL, ht_width = NULL, fix_order = FALSE) {
+                            show_pct = TRUE, pct_side = 'right', row_names_side = 'left',
+                            fix_order = FALSE, keep_original_column_order = TRUE, 
+                            ht_height = NULL, ht_width = NULL) {
   
   # Compute binary matrix for row and column ordering
   biVar <- do.call(pmax,var_list)
@@ -622,33 +618,19 @@ build_oncoprint <- function(var_list, meta,
 
 # Main function for formatting alteration data and generating 
 #   oncoplots using oncoPrint() from ComplexHeatmap
-make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL, 
+make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL, 
+                           select_variants = NULL, min_vars = 1, 
                            top_anno = NULL, bottom_anno = NULL, 
-                           cor_pheno = NULL, cor_assignments = NULL, cor_cols = NULL, 
+                           ht_height = NULL, ht_width = NULL, 
+                           column_split = NULL, column_split_order = NULL,
+                           cluster_columns = FALSE, column_title = NULL, 
                            
-                           column_title = NULL, min_vars = 1, 
+                           fix_order = FALSE, keep_original_column_order = TRUE,
                            
-                           select_samples = NULL, select_variants = NULL, cluster_columns = FALSE, 
-                           
-                           cluster_rows = FALSE,  ht_height = NULL, ht_width = NULL, 
-                           
-                           category_table = NULL, 
-                           cat_order = NULL,
-                           
-                           column_split = NULL,
-                           column_split_order = NULL,
-                           
-                           show_pct = TRUE,
-                           
-                           row_names_side = 'left', pct_side = 'right',
-                           
-                           return_objects = FALSE, 
-                           keep_original_column_order = TRUE, 
-                           
-                           count_by_group = NULL, 
-                           group_colors = NULL, 
-                           
-                           fix_order = FALSE) {
+                           cluster_rows = FALSE, row_names_side = 'left', 
+                           show_pct = TRUE, pct_side = 'right',
+                           category_table = NULL, cat_order = NULL,
+                           pre = NULL, return_objects = FALSE) {
   
   # Format gene categories if table provided
   if (!is.null(category_table)) {
@@ -661,25 +643,21 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
   }
   
   # Process all data into unified lists for oncoprint
-  var_lists <- var_list_pipeline(#cnvs.dat, snvs.dat, 
-                                 t(cnvs.dat), t(snvs.dat), 
+  var_lists <- var_list_pipeline(t(cnvs.dat), t(snvs.dat), 
                                  meta, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
   var_list.all <- var_lists[[1]]
   var_list.cnvs <- var_lists[[2]]
   var_list.snvs <- var_lists[[3]]
   meta.sub <- var_lists[[5]]
   
-  
-  print(var_lists)
-  
-  
-  # ALL VARIANTS
+  # CNVS AND SNVS
   if (length(var_list.all) >= 1) {
     
     if (nrow(do.call(pmax,var_list.all)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_all.png", sep = '')} else {fn <- NULL}
-      oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, 
+      
+      oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, select_samples = select_samples, 
                                     fn = fn, 
                                     column_title = column_title, 
                                     top_anno = top_anno, bottom_anno = bottom_anno, 
@@ -688,7 +666,6 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
                                     
                                     column_split = column_split, column_split_order = column_split_order,
                                     
-                                    select_samples = select_samples, 
                                     
                                     
                                     keep_original_column_order = keep_original_column_order,
@@ -699,7 +676,11 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
       
     } 
     
-  } else {oncoHT.all <- NULL}
+  } else {
+    
+    oncoHT.all <- NULL
+    
+  }
   
   # CNVS ONLY
   if (length(var_list.cnvs) >= 1) {
@@ -707,21 +688,28 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
     if (nrow(do.call(pmax,var_list.cnvs)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_cnvs.png", sep = '')} else {fn <- NULL}
-      oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
+      
+      
+      oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, select_samples = select_samples, 
+                                     fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
                                      column_split = column_split, column_split_order = column_split_order,
                                      
-                                     select_samples = select_samples, 
+                                     
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
                                      show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     
-  } else {oncoHT.cnvs <- NULL}
+  } else {
+    
+    oncoHT.cnvs <- NULL
+    
+  }
   
   # SNVS ONLY
   if (length(var_list.snvs) >= 1) {
@@ -729,22 +717,26 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, pre = NULL,
     if (nrow(do.call(pmax,var_list.snvs)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "oncoprint_snvs.png", sep = '')} else {fn <- NULL}
-      oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, fn = fn, column_title = column_title, top_anno = top_anno, 
+      oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, select_samples = select_samples, 
+                                     
+                                     fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
                                      column_split = column_split, column_split_order = column_split_order,
                                      
-                                     select_samples = select_samples, 
+                                     
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
                                      show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     
-  } else {oncoHT.snvs <- NULL}
-  
-  
+  } else {
+    
+    oncoHT.snvs <- NULL
+    
+  }
   
   # Return oncoplot objects
   if (return_objects) {

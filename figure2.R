@@ -177,7 +177,6 @@ make_oncoplots(cnvs.htan,
                snvs.htan,
                meta.htan,
                select_samples = htan.paired,
-               
                select_variants = dna_cats.htan$Gene,
                category_table = dna_cats.htan,
                
