@@ -439,3 +439,376 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
   
 }
 
+
+
+
+# Main function for building omics heatmaps using ComplexHeatmap 
+make_heatmap <- function(mat, 
+                         meta, 
+                         select_samples = NULL, 
+                         select_features = NULL, 
+                         
+                         compute_change = FALSE,
+                         
+                         lgd_name = 'Activity', 
+                         ht_cols = c('cyan', 'black', 'magenta'),
+                         force_col_fun = NULL,
+                         show_heatmap_legend = TRUE,
+                         lgdFntSize = 12, 
+                         ht_lgd_length = 2,
+                         lgd_gridsize = 4,
+                         max_lgd_width = NULL, 
+                         
+                         heatmap_width = unit(6, 'in'), add_width = 0, 
+                         heatmap_height = unit(8, 'in'), add_height = 0,
+                         res = NULL, rect_gp = gpar(col = NA), 
+                         
+                         top_anno = NULL, btm_anno = NULL,
+                         show_column_annotation_legend = TRUE,
+                         cluster_columns = FALSE, 
+                         split_column_by_pheno = NULL, 
+                         split_column_by_dendrogram = NULL,
+                         
+                         cluster_rows = FALSE,
+                         category_table = NULL, 
+                         split_by_cat = TRUE, 
+                         cat_order = NULL, 
+                         category_colors = NULL, annotate_categories = TRUE,
+                         show_row_annotation_legend = TRUE,
+                         show_row_names = NULL,
+                         row_title_rot = 0,
+                         
+                         compute_cyto = NULL,
+                         g1_score = NULL,
+                         
+                         fn = NULL, 
+                         return_heat_objects = FALSE) {
+  
+  
+  # Subset down to select features
+  if (is.null(select_features)) {select_features <- rownames(mat)}
+  mat <- mat[select_features,,drop = FALSE ]
+  
+  
+  # Subset category table down to select features
+  if (!is.null(category_table)) {
+    
+    category_table <- category_table[category_table[[1]] %in% c(select_features,rownames(mat)),]
+    mat <- mat[category_table[[1]],,drop = FALSE]
+    
+    # Color annotate categories
+    if (annotate_categories) {
+      rowAnno.items <- make_row_annotations(mat, category_table = category_table, 
+                                            fntSize = lgdFntSize, gridSize = lgd_gridsize,
+                                            category_colors = category_colors, lgd_rows = 2)
+      rowAnno <- rowAnno.items[[1]]
+      rowLgd <- rowAnno.items[[2]]
+      
+    } else {
+      
+      rowAnno <- NULL
+      rowLgd <- NULL
+      
+    }
+    
+    # Split rows by category
+    if (split_by_cat) {
+      
+      # Format gene/protein categories
+      category_table <- category_table %>%
+        mutate(Category = gsub('_', '\n', Category)) %>%
+        mutate(Category = gsub(' ', '\n', Category)) %>%
+        mutate(Category = gsub('-', '\n', Category))
+      
+      row_split <- category_table[[2]]
+      
+      # Set specific order if provided
+      if (!is.null(cat_order)) {
+        
+        cat_order <- gsub('_', '\n', cat_order)
+        cat_order <- gsub(' ', '\n', cat_order)
+        cat_order <- gsub('-', '\n', cat_order)
+        
+        row_split <- factor(row_split, levels = cat_order)
+        
+      }
+      
+    } else {
+      row_split <- NULL
+    }
+    
+  } else {
+    row_split <- NULL
+    rowAnno <- NULL
+    rowLgd <- NULL
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  # Select samples for heatmap
+  if (is.null(select_samples)) {select_samples <- colnames(mat)}
+  
+  # Subset down to select samples
+  mat <- mat[,select_samples,drop = FALSE]
+  
+  # Compute cytolytic activity
+  # TODO: Need to compute cyto, then compute change, then create annotation object
+  if (!is.null(compute_cyto)) {
+    cyto_act <- get_cyto_activity(compute_cyto[,select_samples])
+    #cyto_act <- get_cyto_activity(compute_cyto)
+    cyto_anno <- cyto_annotation(cyto_act)
+    
+    
+    
+  } else {
+    cyto_anno <- NULL
+  }
+  
+  
+  
+  # Compute change between samples
+  if (compute_change) {
+    
+    mat.change <- mat %>% melt() %>% 
+      setNames(c('Feature', 'Sample', 'Value')) %>%
+      left_join(meta) %>%
+      select(Patient, Sample, Date, Feature, Value) %>% 
+      group_by(Patient, Feature) %>% 
+      arrange(Date, by_group = TRUE) %>%
+      filter(n() >= 2) %>%
+      mutate(Change = Value - lag(Value)) %>%
+      ungroup() %>%
+      filter(!is.na(Change)) 
+    
+    mat.change <- acast(mat.change, Feature ~ Sample, value.var = 'Change')
+    
+    select_samples <- select_samples[select_samples %in% colnames(mat.change)]
+    
+    # Create heatmap colors
+    df.change <- calc_change(mat, meta[colnames(mat),], c("BxE", "Bx1", "Bx2", "Bx3", "Bx4", "Bx5", "Bx", "BxA"))[[1]]
+    col_func <- make_heatmap_colors(df.change, htColors = ht_cols)
+    #col_func <- make_heatmap_colors(mat.change, htColors = ht_cols)
+    
+    mat <- mat.change[rownames(mat),select_samples]
+    
+    # Get G1 score if provided
+    if (!is.null(g1_score)) {
+      
+      g1_score <- g1_score %>%
+        filter(Sample %in% colnames(mat),
+               Signature == 'G1-arrest') %>%
+        select(Sample, Score) %>%
+        distinct() %>%
+        data.frame()
+      rownames(g1_score) <- g1_score$Sample
+      g1_score <- g1_score[colnames(mat),]
+      
+      # Create barplot anotation
+      g1_anno <- HeatmapAnnotation('G1 Arrest Score' = anno_barplot(g1_score$Score, 
+                                                                    height = unit(1, "in"), 
+                                                                    axis_param = list(
+                                                                      at = seq(-0.5, 1, .5),
+                                                                      labels = seq(-0.5, 1, .5)),
+                                                                    ylim = c(-.8,1.25))) 
+      
+    }
+    
+    if (!is.null(compute_cyto)) {
+      
+      # Get cytolytic activity
+      cyto_act <- get_cyto_activity(compute_cyto)
+      cyto_act$Sample <- rownames(cyto_act)
+      
+      # Compute change across pairs
+      cyto_act <- cyto_act %>%  
+        left_join(meta) %>%
+        select(Patient, Sample, Date, Score) %>% 
+        group_by(Patient) %>% 
+        arrange(Date, by_group = TRUE) %>%
+        filter(n() >= 2) %>%
+        mutate(Change = Score - lag(Score)) %>%
+        ungroup() %>%
+        filter(!is.na(Change)) %>%
+        data.frame()
+      
+      rownames(cyto_act) <- cyto_act$Sample
+      cyto_act <- cyto_act[colnames(mat),]
+      
+      # Create barplot annotation
+      cyto_anno <- HeatmapAnnotation('Cytolytic Change' = anno_barplot(cyto_act$Change, 
+                                                                       height = unit(1, "in"), 
+                                                                       axis_param = list(#at = c(-1,-0.5,0,0.5,1,1.5), 
+                                                                         at = seq(-0.5, 1, .5),
+                                                                         #labels = c(-1,-0.5,0,0.5,1,1.5)), 
+                                                                         labels = seq(-0.5, 1, .5)),
+                                                                       ylim = c(-.8,1.25))) 
+      
+    } else {
+      cyto_anno <- NULL
+    }
+    
+  }
+  
+  # Subset annotations
+  meta$AnnoIndex <- 1:nrow(meta)
+  if (!is.null(top_anno)) {top_anno <- update_annotations(meta[select_samples,], top_anno)}
+  if (!is.null(btm_anno)) {btm_anno <- update_annotations(meta[select_samples,], btm_anno)}
+  
+  if (!is.null(cyto_anno)) {
+    top_anno[[1]] <- cyto_anno %v% top_anno[[1]]
+  }
+  
+  # Add G1 arrest score (only if change computed)
+  if (!is.null(g1_score)) {
+    top_anno[[1]] <- g1_anno %v% top_anno[[1]]
+  }
+  
+  
+  # Split columns by specified phenotype
+  if (!is.null(split_column_by_pheno)) {
+    
+    if (split_column_by_pheno == 'HTAN') {
+      
+      meta[,'HTAN'] <- gsub('_p2', '', meta[,'HTAN'])
+      meta[,'HTAN'] <- gsub('HTA', '', meta[,'HTAN'])
+      meta[,'HTAN'] <- factor(meta[,'HTAN'], levels = c("9-1", "9-2", "9-3", "9-14", "9-15"))
+    
+    }
+    
+    col_split <- meta[select_samples,split_column_by_pheno]
+    cluster_columns <- FALSE
+  
+  } else {
+    
+    col_split <- NULL
+    
+  }
+  
+  
+  # Split by dendrogram
+  if (!is.null(split_column_by_dendrogram)) {
+    
+    col_split <- split_column_by_dendrogram
+    cluster_columns <- TRUE
+    column_title <- NULL
+  
+  } else {
+    
+    col_split <- col_split
+    column_title <- unique(col_split)
+  
+  }
+  
+  # Hide row names
+  if (is.null(show_row_names)) {
+    
+    if (nrow(mat) > 70) {show_row_names <- FALSE} else {show_row_names <- TRUE}
+  
+  }
+  
+  # Use supplied heatmap color function 
+  if (!is.null(force_col_fun)) { col_func <- force_col_fun }
+  
+  
+  # Create heatmap colors
+  # TODO: shouldn't this be swapped with above????
+  col_func <- make_heatmap_colors(mat, htColors = ht_cols)
+  
+  # Create heatmap legend
+  ht_lgd = Legend(title = lgd_name, direction = "horizontal", 
+                  legend_width = unit(ht_lgd_length, 'in'), legend_height = unit(ht_lgd_length, 'in'), 
+                  title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), labels_gp = gpar(fontsize = lgdFntSize), 
+                  title_position = "topcenter", col_fun = col_func)
+  
+  
+  
+  
+  # Main heatmap body
+  ht <- Heatmap(mat, col = col_func, show_heatmap_legend = FALSE, 
+                left_annotation = rowAnno, row_split = row_split,
+                row_title_rot = row_title_rot,
+                cluster_rows = cluster_rows, cluster_columns = FALSE, 
+                show_row_names = show_row_names,
+                rect_gp = rect_gp,
+                width = heatmap_width, height = heatmap_height)
+  
+  
+  # Cluster columns if specified
+  if (cluster_columns) {cluster_columns <- create_dendrogram(t(mat))}
+  
+  
+  
+  # Create empty matrix to store plot title
+  ht.title <- Heatmap(matrix(0, nrow = 0, ncol = length(select_samples)), 
+                      #column_order = order_columns, 
+                      cluster_columns = cluster_columns,
+                      column_split = col_split,
+                      column_title = column_title,
+                      #column_title = ht_title, 
+                      heatmap_width = heatmap_width)
+  
+  # Stack heatmap objects
+  ht <- ht.title %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
+  
+  
+  # Merge legends
+  # TODO: CAN WE JUST USE make_legend_list() function?
+  lgd_list <- list()
+  
+  # Add row annotation legend
+  if (!is.null(rowLgd) & show_row_annotation_legend) {
+    n <- 1
+    lgd_list[[n]] <- rowLgd[[1]]
+  } else {
+    n <- 0
+  }
+  
+  # Add top annotations
+  if (!is.null(top_anno) & show_column_annotation_legend) {
+    for (i in 1:length(top_anno[[2]])) { lgd_list[[i+n]] <- top_anno[[2]][[i]]  }
+  } else {
+    i <- 0
+  }
+  
+  # Add heatmap legends
+  if (show_heatmap_legend) {
+    n <- n + i + 1
+    lgd_list[[n]] <- ht_lgd
+    names(lgd_list)[n] <- 'ht_lgd'
+  }
+  
+  # Add bottom annotations
+  if (!is.null(btm_anno) & show_column_annotation_legend) {
+    for (i in 1:length(btm_anno[[2]])) {  lgd_list[[i+n]] <- btm_anno[[2]][[i]]  }
+  }
+  
+  
+  # Save heatmap to file
+  if (!is.null(fn)) {
+    
+    if (length(lgd_list) == 0) {lgd_list <- list(NULL)}
+    
+    if (is.null(max_lgd_width)) {max_lgd_width <- heatmap_width}
+    
+    save_htan_heatmap(list(ht, lgd_list), fn, ht_gap = unit(1, "mm"), 
+                      add_height = add_height, add_width = add_width,
+                      res = res, max_width = max_lgd_width)
+    
+  }
+  
+  # Return heatmap and legend objects
+  if (return_heat_objects) { return(list(ht = ht, lgd = lgd_list))  }
+  
+}
+
+
+
+
+
+
+

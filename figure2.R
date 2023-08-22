@@ -33,7 +33,7 @@ cnvs.htan <- load_cnvs(meta.htan, fn.dir = source_dir)
 snvs.htan <- load_snvs(meta.htan, fn.dir = source_dir)
 
 # GSVA enrichment scores (RNA-seq)
-
+gsva.htan <- load_gsva(meta.htan, fn.dir = source_dir)
 
 # Gene expression (RNA-seq)
 
@@ -170,9 +170,8 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 #
 ####################################################################################
 
-# TODO: Test when select_samples = NULL
-
 # Oncoplot of select variants from relevant pathways with ordered columns
+# TODO: Change file naming
 make_oncoplots(cnvs.htan, 
                snvs.htan,
                meta.htan,
@@ -189,51 +188,90 @@ make_oncoplots(cnvs.htan,
                cluster_columns = FALSE, 
                cluster_rows = FALSE,
                fix_order = TRUE,
-               
                ht_width = unit(10.5, 'in'),
                ht_height = unit(7.7, 'in'),
-               
                bottom_anno = list(onco_annotations.htan[[1]], NULL))
 
 
 
-##################################################################
+##########################################################################
 #
-#  FIGURE 2B: 
+#  FIGURE 2B: TRANSCRIPTIONAL GENE SET VARIATION ANALYSIS (GSVA) OF 
+#             PATHWAYS DURING CDK4/6I THERAPY AND PROGRESSION
 #
-##################################################################
+##########################################################################
+
+# Intrinsic pathways from Mann-Whitney test (p < 0.1)
+gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT", 
+                        "KEGG_DNA_REPLICATION", "MTORC1_SIGNALING", 
+                        "MYC_TARGETS_V1", "OXIDATIVE_PHOSPHORYLATION", 
+                        "PROTEIN_SECRETION", "REACTOME_CELL_CYCLE", 
+                        "REACTOME_REPLICATION_STRESS", "REACTOME_S_PHASE", 
+                        "UNFOLDED_PROTEIN_RESPONSE")
+
+
+# CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
+ht.fn <- paste(results_dir.htan, "rna_figures/heatmaps/gsva_test_heatmap.png", sep = '/')
+
+# TODO: Change function name
+make_heatmap(gsva.htan,
+             meta.htan,
+             select_samples = htan.paired,
+             top_anno = top_annotations.change.htan,  
+             btm_anno = btm_annotations.change.htan,
+             category_table = gsva_cats.htan, 
+             cat_order = c("Cell Cycle", "Replication Stress", "PI3K/AKT/mTOR", 
+                           "Cellular Process", "Metabolic"),
+             #g1_score = g1score.htan,
+             cluster_columns = TRUE,
+             select_features = gsva_pws.intrinsic,
+             show_column_annotation_legend = FALSE,
+             heatmap_width = unit(5.5, 'in'),
+             heatmap_height = unit(6.25, 'in'),
+             add_width = -0.35,
+             compute_change = TRUE,
+             split_column_by_dendrogram = 2,
+             lgd_name = 'Activity Change',
+             split_by_cat = TRUE, 
+             fn = ht.fn
+)
 
 
 
-##################################################################
+
+###########################################################################
 #
-#  FIGURE 2C: 
+#  FIGURE 2C: INTEGRATED HEATMAP OF INTRINSIC RNA AND PROTEIN 
+#             CHANGES DURING CDK4/6I THERAPY AND PROGRESSION
 #
-##################################################################
+###########################################################################
 
 
 
-##################################################################
+###########################################################################
 #
-#  FIGURE 2D: 
+#  FIGURE 2D: INTRINSIC PROTEOMIC PATHWAY SIGNALING 
+#             DURING CDK4/6I THERAPY AND PROGRESSION
 #
-##################################################################
+###########################################################################
 
 
 
-##################################################################
+#############################################################################################
 #
-#  FIGURE 2E: 
+#  FIGURE 2E: VIOLIN PLOTS SHOWING DISTRIBUTIONS OF PER-CELL CHROMATIC ACCESSIBILITY 
+#             ENRICHMENT SCORES FOR INTRINSIC PATHWAYS FROM SCIATAC-SEQ
 #
-##################################################################
+#############################################################################################
 
 
 
-##################################################################
+####################################################################################
 #
-#  FIGURE 2F: 
+#  FIGURE 2F: QUANTIFIACTION OF SPATIAL HETEROGENEITY OF PROLIFERATING TUMOR 
+#             CELLS DURING CDK4/6I THERAPY AND PROGRESSION USING CYCIF
 #
-##################################################################
+####################################################################################
 
 
 
