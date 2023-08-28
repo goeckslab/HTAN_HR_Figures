@@ -124,6 +124,27 @@ make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
 make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
                                     labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25)) {
   
+  # Compute axis parameters if not provided
+  if (is.null(labs) | is.null(ylim)) {
+    
+    m.ax <- ceiling(max(meta[,anno])*2) / 2
+    m.in <- min(0, (floor(min(meta[,anno])*2) / 2))
+    
+    if (is.null(labs)) {
+      
+      labs <- seq(m.in,m.ax,0.5)
+      
+    }
+    
+    if (is.null(ylim)) {
+      
+      ylim <- c(m.in,m.ax)
+      
+    }
+    
+  }
+  
+  
   # Create barplot anotation
   if (anno == 'g1Score') {
     
