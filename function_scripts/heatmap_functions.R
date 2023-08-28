@@ -120,6 +120,44 @@ make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
   
 }
 
+# Function to subset annotation objects to select samples
+update_annotations <- function(meta, annotation_objects) {
+  
+  # Pull out annotation from list and leave legend
+  anno <- annotation_objects[[1]]
+  
+  # Make sure annotation object exists
+  if (!is.null(anno)) {
+    
+    # If only one annotation, just subset
+    if (length(anno) == 1) {
+      
+      anno_update <- anno[meta$AnnoIndex,]
+      
+    }
+    
+    # If multiple annotations, start new object, iteratively subset and concatenate 
+    else {
+      
+      anno_update <- NULL
+      
+      for (i in 1:length(anno)) {
+        
+        anno_update <- anno_update %v% anno[i][,meta$AnnoIndex]
+        
+      }
+      
+    }
+    
+    # Replace with subsetted annotations
+    annotation_objects[[1]] <- anno_update
+    
+  }
+  
+  return(annotation_objects)
+  
+}
+
 # Function for creating barplot column annotations for heatmaps
 make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
                                     labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25)) {
@@ -263,41 +301,55 @@ make_heatmap_annotations <- function(meta) {
         
 }
 
-# Function to subset annotation objects to select samples
-update_annotations <- function(meta, annotation_objects) {
+# Function to make color row annotations for heatmaps
+make_row_annotations <- function(mat, category_table, category_colors, 
+                                 lgd_rows = 2, fntSize = 10, gridSize = 4) {
   
-  # Pull out annotation from list and leave legend
-  anno <- annotation_objects[[1]]
+  # Only use features present in matrix
+  category_table <- category_table[category_table[,c(1)] %in% rownames(mat),]
   
-  # Make sure annotation object exists
-  if (!is.null(anno)) {
-    
-    # If only one annotation, just subset
-    if (length(anno) == 1) {
-      
-      anno_update <- anno[meta$AnnoIndex,]
-    
-    }
-    
-    # If multiple annotations, start new object, iteratively subset and concatenate 
-    else {
-      
-      anno_update <- NULL
-      
-      for (i in 1:length(anno)) {
-      
-        anno_update <- anno_update %v% anno[i][,meta$AnnoIndex]
-        
-      }
-      
-    }
-    
-    # Replace with subsetted annotations
-    annotation_objects[[1]] <- anno_update
+  # Set category for features in multiple categories to NA
+  multiRows <-  names(table(category_table[,c(1)])[table(category_table[,c(1)])>1])
+  category_table[category_table[,c(1)] %in% multiRows,c(2)] <- NA
+  category_table <- distinct(category_table)
   
+  # Match feature category table with matrix
+  rownames(category_table) <- as.character(category_table[,c(1)])
+  category_table <- category_table[rownames(mat),]
+  
+  # Set any categories without available color annotation assignments to NA
+  category_table[!(category_table[,c(2)] %in% names(category_colors)),c(2)] <- NA
+  
+  # Create row annotation and legend if any remaining features can be color annotated
+  if (sum(!(is.na(category_table[,2]))) > 0) {
+    
+    row_anno <- rowAnnotation(Category = category_table[,c(2)], col = list(Category = category_colors), 
+                              show_legend = FALSE, na_col = 'white', show_annotation_name = FALSE)
+    
+    row_lgd <- list(Legend(labels = names(category_colors)[names(category_colors) %in% category_table[,c(2)]], 
+                           legend_gp = gpar(fill = category_colors[names(category_colors) %in% category_table[,c(2)]]),
+                           title_gp = gpar(fontsize = fntSize, fontface = "bold"), labels_gp = gpar(fontsize = fntSize), 
+                           title = 'Category', nrow = lgd_rows, grid_height = unit(gridSize, 'mm'), grid_width = unit(gridSize, 'mm')))
+  
+  } else {
+    
+    row_anno = NULL
+    row_lgd = NULL
+    
   }
   
-  return(annotation_objects)
+  return(list(row_anno, row_lgd))
+  
+}
+
+# Convenience function to clean up names when splitting heatmaps by category
+format_cats <- function(categories) {
+  
+  categories <- gsub('_', '\n', categories)
+  categories <- gsub(' ', '\n', categories)
+  categories <- gsub('-', '\n', categories)
+  
+  return(categories)
   
 }
 
@@ -498,6 +550,26 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
 }
 
 
+# Function to compute change across pairs of patient biopsies 
+#   Needs meta with date specifying biopsy timepoint
+# TODO: May store in separate library script if more space needed
+compute_paired_change <- function(df, meta) {
+  
+  df %>% 
+    melt() %>% 
+    setNames(c('Feature', 'Sample', 'Value')) %>%
+    left_join(meta) %>%
+    select(Patient, Sample, Date, Feature, Value) %>% 
+    group_by(Patient, Feature) %>% 
+    arrange(Date, by_group = TRUE) %>%
+    filter(n() >= 2) %>%
+    mutate(Change = Value - lag(Value)) %>%
+    ungroup() %>%
+    filter(!is.na(Change)) %>%
+    acast(Feature ~ Sample, value.var = 'Change') %>%
+    return()
+  
+}  
 
 
 # Main function for building omics heatmaps using ComplexHeatmap 
@@ -515,6 +587,7 @@ make_heatmap <- function(mat,
                          lgdFntSize = 12, 
                          ht_lgd_length = 2,
                          lgd_gridsize = 4,
+                         lgd_rows = 2, 
                          max_lgd_width = NULL, 
                          
                          heatmap_width = unit(6, 'in'), add_width = 0, 
@@ -543,22 +616,27 @@ make_heatmap <- function(mat,
                          return_heat_objects = FALSE) {
   
   
+
+  # ~~~~~~~~~~~~~~~~~~~ ROW PARAMETERS ~~~~~~~~~~~~~~~~~~~~~ #
+  
   # Subset down to select features
   if (is.null(select_features)) {select_features <- rownames(mat)}
   mat <- mat[select_features,,drop = FALSE ]
   
-  
-  # Subset category table down to select features
+  # Set parameters for row splitting and/or annotating
   if (!is.null(category_table)) {
     
+    # Subset category table down to select features
     category_table <- category_table[category_table[[1]] %in% c(select_features,rownames(mat)),]
     mat <- mat[category_table[[1]],,drop = FALSE]
     
     # Color annotate categories
     if (annotate_categories) {
+      
       rowAnno.items <- make_row_annotations(mat, category_table = category_table, 
                                             fntSize = lgdFntSize, gridSize = lgd_gridsize,
-                                            category_colors = category_colors, lgd_rows = 2)
+                                            category_colors = category_colors, lgd_rows = lgd_rows)
+      
       rowAnno <- rowAnno.items[[1]]
       rowLgd <- rowAnno.items[[2]]
       
@@ -574,35 +652,34 @@ make_heatmap <- function(mat,
       
       # Format gene/protein categories
       category_table <- category_table %>%
-        mutate(Category = gsub('_', '\n', Category)) %>%
-        mutate(Category = gsub(' ', '\n', Category)) %>%
-        mutate(Category = gsub('-', '\n', Category))
+        mutate(Category = format_cats(Category)) 
       
-      row_split <- category_table[[2]]
-      
-      # Set specific order if provided
+      # Set specific order if provided (reformat first)
       if (!is.null(cat_order)) {
         
-        cat_order <- gsub('_', '\n', cat_order)
-        cat_order <- gsub(' ', '\n', cat_order)
-        cat_order <- gsub('-', '\n', cat_order)
+        category_table <- category_table %>%
+          mutate(Category = factor(Category, levels = format_cats(cat_order)))
         
-        row_split <- factor(row_split, levels = cat_order)
-        
-      }
+      } 
+      
+      # Pull out row split for heatmap
+      row_split <- category_table %>% pull(Category)
       
     } else {
+      
       row_split <- NULL
+    
     }
     
   } else {
+    
     row_split <- NULL
     rowAnno <- NULL
     rowLgd <- NULL
+  
   }
   
-  
-  
+  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   
   
   
