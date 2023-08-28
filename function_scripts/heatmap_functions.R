@@ -48,6 +48,17 @@ colors.patient <- c("9-1" = "#F57206FF",
                     "9-14" = "darkcyan", 
                     "9-15" = "#434159FF")
 
+colors.gsva <- c("Cellular Component" = "#EC579AFF", 
+                 "Development" = "#7F8624FF", 
+                 "DNA Damage" = "#0C5BB0FF", 
+                 "Immune Cells" = "navy", 
+                 "Immune Signaling" = "#EE0011FF", 
+                 "JAK/STAT" = "turquoise3",
+                 "Metabolic" = "#149BEDFF", 
+                 "Pathway" = "#FA6B09FF", 
+                 "Proliferation" = "#FEC10BFF", 
+                 "Receptor Signaling" = "#15983DFF", 
+                 "Signaling" = "purple")
 
 # Function for building heatmap annotation legend objects
 make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
@@ -283,7 +294,7 @@ make_heatmap_annotations <- function(meta) {
   
   # Make custom column name annotations for working with HTAN patients
   colAnno <- make_heatmap_columnIDs(meta)
-  pointers <- colAnno[['pointers']]
+  pointers <- colAnno[['pointer']]
   anno.sIDs <- colAnno[['anno.sIDs']]
   anno.pIDpairs <- colAnno[['anno.pIDpairs']]
   
@@ -583,7 +594,7 @@ make_heatmap <- function(mat,
                          
                          lgd_name = 'Activity', 
                          ht_cols = c('cyan', 'black', 'magenta'),
-                         force_col_fun = NULL,
+                         col_func = NULL,
                          show_heatmap_legend = TRUE,
                          lgdFntSize = 12, 
                          ht_lgd_length = 2,
@@ -599,6 +610,7 @@ make_heatmap <- function(mat,
                          show_column_annotation_legend = TRUE,
                          cluster_columns = FALSE, 
                          split_column_by_pheno = NULL, 
+                         column_split_order = NULL,
                          split_column_by_dendrogram = NULL,
                          
                          cluster_rows = FALSE,
@@ -611,8 +623,6 @@ make_heatmap <- function(mat,
                          row_title_rot = 0,
                          
                          bar_anno = NULL,
-                         compute_cyto = NULL,
-                         g1_score = NULL,
                          
                          fn = NULL, 
                          return_heat_objects = FALSE) {
@@ -656,6 +666,7 @@ make_heatmap <- function(mat,
     # Color annotate categories
     if (annotate_categories) {
       
+      # Make row annotation object and legend
       rowAnno.items <- make_row_annotations(mat, category_table = category_table, 
                                             fntSize = lgdFntSize, gridSize = lgd_gridsize,
                                             category_colors = category_colors, lgd_rows = lgd_rows)
@@ -702,29 +713,36 @@ make_heatmap <- function(mat,
   
   }
   
-  # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-  
   
   # ~~~~~~~~~~~~~~~~~~~ COLUMN PARAMETERS ~~~~~~~~~~~~~~~~~~~~~ #
-  
   
   # Select samples for heatmap
   if (is.null(select_samples)) {
     
     select_samples <- colnames(mat)
     
+  } else {
+    
+    select_samples <- intersect(select_samples, colnames(mat))
+    
   }
   
-  
-  # Compute change between samples
+  # Compute delta between paired samples
   if (compute_change) {
     
+    # Compute change
     mat.change <- compute_paired_change(mat, meta)
     
+    # Update sample list to 2nd of all sample pairs
     select_samples <- select_samples[select_samples %in% colnames(mat.change)]
     
-    # TODO: Do we need this?
-    mat <- mat.change[rownames(mat),select_samples,drop = FALSE]
+    # Update matrix for heatmap
+    mat <- mat.change[rownames(mat),select_samples,drop=FALSE]
+    
+  } else {
+    
+    # Subset matrix to select samples
+    mat <- mat[,select_samples,drop=FALSE]
     
   }
   
@@ -754,17 +772,19 @@ make_heatmap <- function(mat,
   # Split columns by specified phenotype
   if (!is.null(split_column_by_pheno)) {
     
-    if (split_column_by_pheno == 'HTAN') {
-      
-      meta[,'HTAN'] <- gsub('_p2', '', meta[,'HTAN'])
-      meta[,'HTAN'] <- gsub('HTA', '', meta[,'HTAN'])
-      meta[,'HTAN'] <- factor(meta[,'HTAN'], levels = c("9-1", "9-2", "9-3", "9-14", "9-15"))
-    
-    }
-    
     col_split <- meta[select_samples,split_column_by_pheno]
     cluster_columns <- FALSE
-  
+    
+    # Get order of column groups
+    if (is.null(column_split_order)) {
+      
+      column_split_order <- unique(col_split)
+      
+    }
+    
+    # Assign order as factors 
+    col_split <- factor(col_split, column_split_order)
+    
   } else {
     
     col_split <- NULL
@@ -772,7 +792,7 @@ make_heatmap <- function(mat,
   }
   
   
-  # Split by dendrogram
+  # Split by dendrogram using number of clusters specified
   if (!is.null(split_column_by_dendrogram)) {
     
     col_split <- split_column_by_dendrogram
@@ -782,37 +802,39 @@ make_heatmap <- function(mat,
   } else {
     
     col_split <- col_split
-    column_title <- unique(col_split)
+    column_title <- unique(sort(col_split))
   
   }
   
+  # Cluster columns if specified
+  if (cluster_columns) {cluster_columns <- create_dendrogram(t(mat))}
+  
+  # Create top heatmap object to control column clustering and splitting
+  ht.top <- Heatmap(matrix(0, nrow = 0, ncol = ncol(mat)), 
+                    cluster_columns = cluster_columns,
+                    column_split = col_split,
+                    column_title = column_title,
+                    heatmap_width = heatmap_width)
+  
+  
+  
+  # ~~~~~~~~~~~~~~ BUILD HEATMAP OBJECTS ~~~~~~~~~~~~~~~~ #
   
   
   
   
-  
-  
-  
-  # Use supplied heatmap color function 
-  if (!is.null(force_col_fun)) { col_func <- force_col_fun }
-  
-  
-  # Create heatmap colors
-  # TODO: shouldn't this be swapped with above????
-  col_func <- make_heatmap_colors(mat, htColors = ht_cols)
+  # Create heatmap color function
+  if (is.null(col_func)) {
+    
+    col_func <- make_heatmap_colors(mat, htColors = ht_cols)
+    
+  }
   
   # Create heatmap legend
   ht_lgd = Legend(title = lgd_name, direction = "horizontal", 
                   legend_width = unit(ht_lgd_length, 'in'), legend_height = unit(ht_lgd_length, 'in'), 
                   title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), labels_gp = gpar(fontsize = lgdFntSize), 
                   title_position = "topcenter", col_fun = col_func)
-  
-  
-  
-  
-  
-  
-  
   
   # Main heatmap body
   ht <- Heatmap(mat, col = col_func, 
@@ -828,22 +850,8 @@ make_heatmap <- function(mat,
                 height = heatmap_height)
   
   
-  # Cluster columns if specified
-  if (cluster_columns) {cluster_columns <- create_dendrogram(t(mat))}
-  
-  
-  
-  # Create empty matrix to store plot title
-  ht.title <- Heatmap(matrix(0, nrow = 0, ncol = length(select_samples)), 
-                      #column_order = order_columns, 
-                      cluster_columns = cluster_columns,
-                      column_split = col_split,
-                      column_title = column_title,
-                      #column_title = ht_title, 
-                      heatmap_width = heatmap_width)
-  
   # Stack heatmap objects
-  ht <- ht.title %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
+  ht <- ht.top %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
   
   
   
@@ -900,6 +908,7 @@ make_heatmap <- function(mat,
                       res = res, max_width = max_lgd_width)
     
   }
+  
   
   
   

@@ -68,8 +68,20 @@ load_gsva <- function(meta, fn = 'gsva_scores.csv', fn.dir = '') {
   
 }
 
-
-
+# Function to load proteomic pathway activity (RPPA) scores
+load_ppws <- function(meta, fn = 'protein_pathway_scores.csv', fn.dir = '') {
+  
+  # Load pathway scores
+  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
+    data.frame(row.names = 1, check.names = FALSE) 
+  
+  select_samples <- as.character(meta$Sample[meta$Sample %in% colnames(df)])
+  
+  df <- df[,select_samples]
+  
+  return(df)
+  
+}
 
 
 

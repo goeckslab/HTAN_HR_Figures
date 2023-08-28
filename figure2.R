@@ -45,7 +45,7 @@ gsva.htan <- load_gsva(meta.htan, fn.dir = source_dir)
 
 
 # Proteomic pathway scores (RPPA)
-
+ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
 
 # Chromatin accessibility enrichment (sciATAC-seq)
 
@@ -126,7 +126,6 @@ btm_annotations.htan <- list(annotations.htan$pamAnno %v%
 
 
 # Annotations for delta heatmaps
-# TODO: May not have to define separate annotations if all legends will be merged 
 top_annotations.change.htan <- list(annotations.htan$onProgAnno %v% 
                                       annotations.htan$erAnno %v%
                                       annotations.htan$responseAnno, 
@@ -217,14 +216,12 @@ ht.fn <- paste(results_dir.htan, "rna_figures/heatmaps/gsva_test_heatmap.png", s
 # TODO: Change function name
 make_heatmap(gsva.htan,
              meta.htan,
-             #select_samples = htan.paired,
              select_samples = htan.onProgression,
              top_anno = top_annotations.change.htan,  
              btm_anno = btm_annotations.change.htan,
              category_table = gsva_cats.htan, 
              cat_order = c("Cell Cycle", "Replication Stress", "PI3K/AKT/mTOR", 
                            "Cellular Process", "Metabolic"),
-             #g1_score = g1score.htan,
              bar_anno = 'g1Score',
              cluster_columns = TRUE,
              select_features = gsva_pws.intrinsic,
@@ -232,7 +229,6 @@ make_heatmap(gsva.htan,
              heatmap_width = unit(5.5, 'in'),
              heatmap_height = unit(6.25, 'in'),
              add_width = -0.35,
-             compute_change = TRUE,
              split_column_by_dendrogram = 2,
              lgd_name = 'Activity Change',
              split_by_cat = TRUE, 
@@ -258,7 +254,31 @@ make_heatmap(gsva.htan,
 #
 ###########################################################################
 
+# Select intrinsic protein pathways to match intrinsic GSVA gene sets
+ppws.intrinsic <- c("Cell_cycle_progression", "G0_G1", "G1_S", "G2_M",
+                        "G2M_Checkpoint", "TSC_mTOR")
 
+
+
+# Heatmap splitting by patient
+ht.fn <- paste(results_dir.htan, "rppa_figures/heatmaps/rppa_pathways_test_heatmap.png", sep = '/')
+
+make_heatmap(ppws.htan, 
+             meta.htan,
+             select_samples = htan.paired,
+             top_anno = top_annotations.split.htan,  
+             btm_anno = btm_annotations.split.htan,
+             category_table = ppw_cats.htan, 
+             select_features = ppws.intrinsic,
+             split_column_by_pheno = 'Patient',
+             cluster_columns = FALSE,
+             heatmap_width = unit(4.5, 'in'),
+             heatmap_height = unit(5.5, 'in'),
+             add_width = -1.5,
+             compute_change = FALSE,
+             show_column_annotation_legend = FALSE,
+             lgd_name = 'Activity',
+             fn = ht.fn)
 
 #############################################################################################
 #
