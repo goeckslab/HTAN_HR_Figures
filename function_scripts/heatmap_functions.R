@@ -110,7 +110,6 @@ make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
                        grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'),
                        title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
   
-  
   return(list('opAstrLgd' = opAstrLgd, 
               'onProgLgd' = onProgLgd,
               'responseLgd' = responseLgd, 
@@ -121,12 +120,42 @@ make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
   
 }
 
+# Function for creating barplot column annotations for heatmaps
+make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
+                                    labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25)) {
+  
+  # Create barplot anotation
+  if (anno == 'g1Score') {
+    
+    bar_anno <- HeatmapAnnotation('G1 Arrest Score' = anno_barplot(meta[,anno],
+                                                                   height = anno_height,
+                                                                   axis_param = list(at = labs,
+                                                                                     labels = labs),
+                                                                   ylim = ylim))
+
+  } else if (anno == 'CytoChange') {
+    
+    bar_anno <- HeatmapAnnotation('Cytolytic Change' = anno_barplot(meta[,anno],
+                                                                   height = anno_height,
+                                                                   axis_param = list(at = labs,
+                                                                                     labels = labs),
+                                                                   ylim = ylim))
+    
+  # TODO: Add cytolytic activity (no change)  
+  } else {
+    
+    bar_anno <- NULL
+    
+  }
+  
+  return(bar_anno)
+  
+}
+
+
+
 # Function to make column ID annotations for heatmaps
 make_heatmap_columnIDs <- function(meta) {
-  
-  # Either mark sample with asterisk or use pipe as arrow to sample name
-  #sample_marker <- rep(NA, nrow(meta))
-  #sample_marker[which(!is.na(meta[,'HTAN']))] <- '|'
   
   # Create annotation for pointing to column names
   pointer <- HeatmapAnnotation(Sample = anno_simple(rep('0', nrow(meta)), pch = rep('|', nrow(meta)), 
@@ -654,6 +683,9 @@ make_heatmap <- function(mat,
     
   }
   
+  
+  
+  
   # Subset annotations
   meta$AnnoIndex <- 1:nrow(meta)
   if (!is.null(top_anno)) {top_anno <- update_annotations(meta[select_samples,], top_anno)}
@@ -704,12 +736,12 @@ make_heatmap <- function(mat,
   
   }
   
-  # Hide row names
-  if (is.null(show_row_names)) {
-    
-    if (nrow(mat) > 70) {show_row_names <- FALSE} else {show_row_names <- TRUE}
   
-  }
+  
+  
+  
+  
+  
   
   # Use supplied heatmap color function 
   if (!is.null(force_col_fun)) { col_func <- force_col_fun }
@@ -726,6 +758,23 @@ make_heatmap <- function(mat,
                   title_position = "topcenter", col_fun = col_func)
   
   
+  
+  
+  
+  # Hide row names
+  if (is.null(show_row_names)) {
+    
+    if (nrow(mat) > 70) {
+      
+      show_row_names <- FALSE
+      
+    } else {
+      
+      show_row_names <- TRUE
+      
+    }
+    
+  }
   
   
   # Main heatmap body
@@ -754,6 +803,13 @@ make_heatmap <- function(mat,
   
   # Stack heatmap objects
   ht <- ht.title %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
+  
+  
+  
+  
+  
+  
+  
   
   
   # Merge legends
@@ -788,6 +844,9 @@ make_heatmap <- function(mat,
   }
   
   
+  
+  
+  
   # Save heatmap to file
   if (!is.null(fn)) {
     
@@ -800,6 +859,9 @@ make_heatmap <- function(mat,
                       res = res, max_width = max_lgd_width)
     
   }
+  
+  
+  
   
   # Return heatmap and legend objects
   if (return_heat_objects) { return(list(ht = ht, lgd = lgd_list))  }
