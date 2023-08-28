@@ -556,7 +556,8 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
 compute_paired_change <- function(df, meta) {
   
   df %>% 
-    melt() %>% 
+    as.matrix() %>%
+    melt() %>%
     setNames(c('Feature', 'Sample', 'Value')) %>%
     left_join(meta) %>%
     select(Patient, Sample, Date, Feature, Value) %>% 
@@ -609,6 +610,7 @@ make_heatmap <- function(mat,
                          show_row_names = NULL,
                          row_title_rot = 0,
                          
+                         bar_anno = NULL,
                          compute_cyto = NULL,
                          g1_score = NULL,
                          
@@ -619,15 +621,36 @@ make_heatmap <- function(mat,
 
   # ~~~~~~~~~~~~~~~~~~~ ROW PARAMETERS ~~~~~~~~~~~~~~~~~~~~~ #
   
-  # Subset down to select features
-  if (is.null(select_features)) {select_features <- rownames(mat)}
-  mat <- mat[select_features,,drop = FALSE ]
+  # Select features to plot from matrix
+  if (is.null(select_features)) {
+    
+    select_features <- rownames(mat)
+    
+  }
+  
+  # Subset matrix to select features
+  mat <- mat[select_features,,drop = FALSE]
+  
+  # Hide row names if too many features
+  if (is.null(show_row_names)) {
+    
+    if (nrow(mat) > 70) {
+      
+      show_row_names <- FALSE
+      
+    } else {
+      
+      show_row_names <- TRUE
+      
+    }
+    
+  }
   
   # Set parameters for row splitting and/or annotating
   if (!is.null(category_table)) {
     
     # Subset category table down to select features
-    category_table <- category_table[category_table[[1]] %in% c(select_features,rownames(mat)),]
+    category_table <- category_table[category_table[[1]] %in% select_features,]
     mat <- mat[category_table[[1]],,drop = FALSE]
     
     # Color annotate categories
@@ -682,129 +705,50 @@ make_heatmap <- function(mat,
   # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
   
   
-  
+  # ~~~~~~~~~~~~~~~~~~~ COLUMN PARAMETERS ~~~~~~~~~~~~~~~~~~~~~ #
   
   
   # Select samples for heatmap
-  if (is.null(select_samples)) {select_samples <- colnames(mat)}
-  
-  # Subset down to select samples
-  mat <- mat[,select_samples,drop = FALSE]
-  
-  # Compute cytolytic activity
-  # TODO: Need to compute cyto, then compute change, then create annotation object
-  if (!is.null(compute_cyto)) {
-    cyto_act <- get_cyto_activity(compute_cyto[,select_samples])
-    #cyto_act <- get_cyto_activity(compute_cyto)
-    cyto_anno <- cyto_annotation(cyto_act)
+  if (is.null(select_samples)) {
     
+    select_samples <- colnames(mat)
     
-    
-  } else {
-    cyto_anno <- NULL
   }
-  
   
   
   # Compute change between samples
   if (compute_change) {
     
-    mat.change <- mat %>% melt() %>% 
-      setNames(c('Feature', 'Sample', 'Value')) %>%
-      left_join(meta) %>%
-      select(Patient, Sample, Date, Feature, Value) %>% 
-      group_by(Patient, Feature) %>% 
-      arrange(Date, by_group = TRUE) %>%
-      filter(n() >= 2) %>%
-      mutate(Change = Value - lag(Value)) %>%
-      ungroup() %>%
-      filter(!is.na(Change)) 
-    
-    mat.change <- acast(mat.change, Feature ~ Sample, value.var = 'Change')
+    mat.change <- compute_paired_change(mat, meta)
     
     select_samples <- select_samples[select_samples %in% colnames(mat.change)]
     
-    # Create heatmap colors
-    df.change <- calc_change(mat, meta[colnames(mat),], c("BxE", "Bx1", "Bx2", "Bx3", "Bx4", "Bx5", "Bx", "BxA"))[[1]]
-    col_func <- make_heatmap_colors(df.change, htColors = ht_cols)
-    #col_func <- make_heatmap_colors(mat.change, htColors = ht_cols)
+    # TODO: Do we need this?
+    mat <- mat.change[rownames(mat),select_samples,drop = FALSE]
     
-    mat <- mat.change[rownames(mat),select_samples]
+  }
+  
+  # Add barplot annotation above column annotations
+  if (!is.null(bar_anno)) {
     
-    # Get G1 score if provided
-    if (!is.null(g1_score)) {
+    if (!is.null(top_anno)) {
       
-      g1_score <- g1_score %>%
-        filter(Sample %in% colnames(mat),
-               Signature == 'G1-arrest') %>%
-        select(Sample, Score) %>%
-        distinct() %>%
-        data.frame()
-      rownames(g1_score) <- g1_score$Sample
-      g1_score <- g1_score[colnames(mat),]
-      
-      # Create barplot anotation
-      g1_anno <- HeatmapAnnotation('G1 Arrest Score' = anno_barplot(g1_score$Score, 
-                                                                    height = unit(1, "in"), 
-                                                                    axis_param = list(
-                                                                      at = seq(-0.5, 1, .5),
-                                                                      labels = seq(-0.5, 1, .5)),
-                                                                    ylim = c(-.8,1.25))) 
-      
-    }
-    
-    if (!is.null(compute_cyto)) {
-      
-      # Get cytolytic activity
-      cyto_act <- get_cyto_activity(compute_cyto)
-      cyto_act$Sample <- rownames(cyto_act)
-      
-      # Compute change across pairs
-      cyto_act <- cyto_act %>%  
-        left_join(meta) %>%
-        select(Patient, Sample, Date, Score) %>% 
-        group_by(Patient) %>% 
-        arrange(Date, by_group = TRUE) %>%
-        filter(n() >= 2) %>%
-        mutate(Change = Score - lag(Score)) %>%
-        ungroup() %>%
-        filter(!is.na(Change)) %>%
-        data.frame()
-      
-      rownames(cyto_act) <- cyto_act$Sample
-      cyto_act <- cyto_act[colnames(mat),]
-      
-      # Create barplot annotation
-      cyto_anno <- HeatmapAnnotation('Cytolytic Change' = anno_barplot(cyto_act$Change, 
-                                                                       height = unit(1, "in"), 
-                                                                       axis_param = list(#at = c(-1,-0.5,0,0.5,1,1.5), 
-                                                                         at = seq(-0.5, 1, .5),
-                                                                         #labels = c(-1,-0.5,0,0.5,1,1.5)), 
-                                                                         labels = seq(-0.5, 1, .5)),
-                                                                       ylim = c(-.8,1.25))) 
+      top_anno[[1]] <- make_barplot_annotation(meta, bar_anno) %v% top_anno[[1]]
       
     } else {
-      cyto_anno <- NULL
+      
+      top_anno <- list(make_barplot_annotation(meta, bar_anno), NULL)
+      
     }
     
   }
   
-  
-  
-  
-  # Subset annotations
+  # Subset column annotations to select samples
   meta$AnnoIndex <- 1:nrow(meta)
   if (!is.null(top_anno)) {top_anno <- update_annotations(meta[select_samples,], top_anno)}
   if (!is.null(btm_anno)) {btm_anno <- update_annotations(meta[select_samples,], btm_anno)}
   
-  if (!is.null(cyto_anno)) {
-    top_anno[[1]] <- cyto_anno %v% top_anno[[1]]
-  }
   
-  # Add G1 arrest score (only if change computed)
-  if (!is.null(g1_score)) {
-    top_anno[[1]] <- g1_anno %v% top_anno[[1]]
-  }
   
   
   # Split columns by specified phenotype
@@ -867,30 +811,21 @@ make_heatmap <- function(mat,
   
   
   
-  # Hide row names
-  if (is.null(show_row_names)) {
-    
-    if (nrow(mat) > 70) {
-      
-      show_row_names <- FALSE
-      
-    } else {
-      
-      show_row_names <- TRUE
-      
-    }
-    
-  }
+  
   
   
   # Main heatmap body
-  ht <- Heatmap(mat, col = col_func, show_heatmap_legend = FALSE, 
-                left_annotation = rowAnno, row_split = row_split,
-                row_title_rot = row_title_rot,
-                cluster_rows = cluster_rows, cluster_columns = FALSE, 
+  ht <- Heatmap(mat, col = col_func, 
+                show_heatmap_legend = FALSE, 
                 show_row_names = show_row_names,
+                left_annotation = rowAnno, 
+                row_split = row_split,
+                row_title_rot = row_title_rot,
+                cluster_rows = cluster_rows, 
+                cluster_columns = FALSE, 
                 rect_gp = rect_gp,
-                width = heatmap_width, height = heatmap_height)
+                width = heatmap_width, 
+                height = heatmap_height)
   
   
   # Cluster columns if specified
