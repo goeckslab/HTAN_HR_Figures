@@ -127,8 +127,8 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
   # Compute axis parameters if not provided
   if (is.null(labs) | is.null(ylim)) {
     
-    m.ax <- ceiling(max(meta[,anno])*2) / 2
-    m.in <- min(0, (floor(min(meta[,anno])*2) / 2))
+    m.ax <- ceiling(max(meta[,anno], na.rm = TRUE)*2) / 2
+    m.in <- min(0, (floor(min(meta[,anno], na.rm = TRUE)*2) / 2))
     
     if (is.null(labs)) {
       
@@ -163,6 +163,14 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
                                                                    ylim = ylim))
     
   # TODO: Add cytolytic activity (no change)  
+  } else if (anno == 'CytolyticActivity') {
+    
+    bar_anno <- HeatmapAnnotation('Cytolytic Activity' = anno_barplot(meta[,anno],
+                                                                      height = anno_height,
+                                                                      axis_param = list(at = labs,
+                                                                                        labels = labs),
+                                                                      ylim = ylim))
+    
   } else {
     
     bar_anno <- NULL
