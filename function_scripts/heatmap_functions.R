@@ -636,6 +636,10 @@ make_heatmap <- function(mat,
     
     select_features <- rownames(mat)
     
+  } else {
+    
+    select_features <- intersect(select_features, rownames(mat))
+    
   }
   
   # Subset matrix to select features
@@ -766,9 +770,6 @@ make_heatmap <- function(mat,
   if (!is.null(top_anno)) {top_anno <- update_annotations(meta[select_samples,], top_anno)}
   if (!is.null(btm_anno)) {btm_anno <- update_annotations(meta[select_samples,], btm_anno)}
   
-  
-  
-  
   # Split columns by specified phenotype
   if (!is.null(split_column_by_pheno)) {
     
@@ -790,7 +791,6 @@ make_heatmap <- function(mat,
     col_split <- NULL
     
   }
-  
   
   # Split by dendrogram using number of clusters specified
   if (!is.null(split_column_by_dendrogram)) {
@@ -820,9 +820,6 @@ make_heatmap <- function(mat,
   
   # ~~~~~~~~~~~~~~ BUILD HEATMAP OBJECTS ~~~~~~~~~~~~~~~~ #
   
-  
-  
-  
   # Create heatmap color function
   if (is.null(col_func)) {
     
@@ -832,74 +829,39 @@ make_heatmap <- function(mat,
   
   # Create heatmap legend
   ht_lgd = Legend(title = lgd_name, direction = "horizontal", 
-                  legend_width = unit(ht_lgd_length, 'in'), legend_height = unit(ht_lgd_length, 'in'), 
-                  title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), labels_gp = gpar(fontsize = lgdFntSize), 
+                  legend_width = unit(ht_lgd_length, 'in'), 
+                  legend_height = unit(ht_lgd_length, 'in'), 
+                  title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), 
+                  labels_gp = gpar(fontsize = lgdFntSize), 
                   title_position = "topcenter", col_fun = col_func)
   
   # Main heatmap body
-  ht <- Heatmap(mat, col = col_func, 
-                show_heatmap_legend = FALSE, 
+  ht <- Heatmap(mat, col = col_func, show_heatmap_legend = FALSE, 
                 show_row_names = show_row_names,
-                left_annotation = rowAnno, 
-                row_split = row_split,
-                row_title_rot = row_title_rot,
-                cluster_rows = cluster_rows, 
-                cluster_columns = FALSE, 
-                rect_gp = rect_gp,
-                width = heatmap_width, 
-                height = heatmap_height)
-  
+                left_annotation = rowAnno, rect_gp = rect_gp,
+                row_split = row_split, row_title_rot = row_title_rot,
+                cluster_rows = cluster_rows, cluster_columns = FALSE, 
+                width = heatmap_width, height = heatmap_height)
   
   # Stack heatmap objects
   ht <- ht.top %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
   
+  # ~~~~~~~~~~~~~~ BUILD LEGEND OBJECTS ~~~~~~~~~~~~~~~~ #
   
+  # Remove legends not to be included
+  if (!show_heatmap_legend) {ht_lgd <- NULL}
+  if (!show_row_annotation_legend) {rowLgd <- NULL}
+  if (!show_column_annotation_legend) {top_anno <- NULL}
+  if (!show_column_annotation_legend) {btm_anno <- NULL}
   
-  
-  
-  
-  
-  
-  
-  # Merge legends
-  # TODO: CAN WE JUST USE make_legend_list() function?
-  lgd_list <- list()
-  
-  # Add row annotation legend
-  if (!is.null(rowLgd) & show_row_annotation_legend) {
-    n <- 1
-    lgd_list[[n]] <- rowLgd[[1]]
-  } else {
-    n <- 0
-  }
-  
-  # Add top annotations
-  if (!is.null(top_anno) & show_column_annotation_legend) {
-    for (i in 1:length(top_anno[[2]])) { lgd_list[[i+n]] <- top_anno[[2]][[i]]  }
-  } else {
-    i <- 0
-  }
-  
-  # Add heatmap legends
-  if (show_heatmap_legend) {
-    n <- n + i + 1
-    lgd_list[[n]] <- ht_lgd
-    names(lgd_list)[n] <- 'ht_lgd'
-  }
-  
-  # Add bottom annotations
-  if (!is.null(btm_anno) & show_column_annotation_legend) {
-    for (i in 1:length(btm_anno[[2]])) {  lgd_list[[i+n]] <- btm_anno[[2]][[i]]  }
-  }
-  
-  
-  
-  
+  # Pack legends into list
+  lgd_list <- make_legend_list(row_lgd_list = rowLgd, 
+                               top_lgd_list = top_anno[[2]], 
+                               ht_lgd = ht_lgd, 
+                               btm_lgd_list = btm_anno[[2]])
   
   # Save heatmap to file
   if (!is.null(fn)) {
-    
-    if (length(lgd_list) == 0) {lgd_list <- list(NULL)}
     
     if (is.null(max_lgd_width)) {max_lgd_width <- heatmap_width}
     
@@ -908,10 +870,6 @@ make_heatmap <- function(mat,
                       res = res, max_width = max_lgd_width)
     
   }
-  
-  
-  
-  
   
   # Return heatmap and legend objects
   if (return_heat_objects) { return(list(ht = ht, lgd = lgd_list))  }
