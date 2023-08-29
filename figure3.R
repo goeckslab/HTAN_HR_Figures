@@ -110,7 +110,12 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 ####################################################################################
 
 # Extrinsic pathways from Mann-Whitney test (p < 0.1)
-gsva_pws.extrinsic <- c()
+gsva_pws.extrinsic <- c("Activated CD8 T cell", "ALLOGRAFT_REJECTION", "Antigen Presentation", 
+                        "COMPLEMENT", "Gamma delta T cell", "iDC", "IL2_STAT5_SIGNALING", 
+                        "IL6_JAK_STAT3_SIGNALING", "INFLAMMATORY_RESPONSE", "INTERFERON_ALPHA_RESPONSE", 
+                        "INTERFERON_GAMMA_RESPONSE", "KEGG_JAK_STAT_SIGNALING_PATHWAY", 
+                        "NK CD56dim cells", "REACTOME_PD_1_SIGNALING", "Regulatory T cell", 
+                        "T Cell Inflamed GEP", "Tem cells")
 
 
 # CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
@@ -119,14 +124,11 @@ ht.fn <- paste(results_dir.htan, "rna_figures/heatmaps/gsva_test_heatmap.png", s
 # TODO: Change function name
 make_heatmap(gsva.htan,
              meta.htan,
-             select_samples = htan.paired,
+             select_samples = htan.onProgression,
              top_anno = top_annotations.change.htan,  
              btm_anno = btm_annotations.change.htan,
              category_table = gsva_cats.htan, 
-             
-             #cat_order = NULL,
-             #compute_cyto = NULL,
-             
+             bar_anno = 'CytoChange',
              cluster_columns = TRUE,
              select_features = gsva_pws.extrinsic,
              show_column_annotation_legend = FALSE,
@@ -134,8 +136,8 @@ make_heatmap(gsva.htan,
              heatmap_height = unit(6, 'in'),
              add_width = 0.5,
              res = 100,
-             compute_change = TRUE,
              split_column_by_dendrogram = 2,
+             compute_change = TRUE,
              lgd_name = 'Activity Change',
              split_by_cat = TRUE, 
              fn = ht.fn

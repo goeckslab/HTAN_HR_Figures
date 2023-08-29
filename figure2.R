@@ -230,6 +230,7 @@ make_heatmap(gsva.htan,
              heatmap_height = unit(6.25, 'in'),
              add_width = -0.35,
              split_column_by_dendrogram = 2,
+             compute_change = TRUE,
              lgd_name = 'Activity Change',
              split_by_cat = TRUE, 
              fn = ht.fn
