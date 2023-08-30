@@ -1,15 +1,10 @@
 
 
-
-
-
-
-
+library(dplyr)
 
 
 # Function for integrating change across multiple RNA and protein assays
-merge_assays <- function(select_samples, 
-                         meta, 
+merge_assays <- function(meta, 
                          df.rna = NULL, 
                          df.viper = NULL, 
                          df.rppa = NULL,
@@ -17,16 +12,8 @@ merge_assays <- function(select_samples,
                          select_gene_cats = NULL, 
                          fill_all_assays = FALSE,
                          Zchange = TRUE, 
+                         select_samples = NULL,
                          select_assays = NULL) {
-  
-  
-  # Subset meta table
-  meta <- meta %>% 
-    select(Sample, Patient, HTAN, HtanID, Date, Biopsy) %>% 
-    distinct() %>% 
-    arrange(Date)
-  
-  
   
   # Store assay tables here
   df.list <- list()
@@ -36,7 +23,9 @@ merge_assays <- function(select_samples,
     
     if (Zchange) {
       
-      df.rna <- df.rna %>% as.matrix() %>% melt() %>% 
+      df.rna <- df.rna %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Sample %in% select_samples,
                Gene %in% select_gene_cats$Gene) %>% 
@@ -53,7 +42,9 @@ merge_assays <- function(select_samples,
       
     } else {
       
-      df.rna <- df.rna %>% as.matrix() %>% melt() %>% 
+      df.rna <- df.rna %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Sample %in% select_samples) %>% 
         select(Sample, Gene, Zscore) %>% 
@@ -73,7 +64,9 @@ merge_assays <- function(select_samples,
     
     if (Zchange) {
       
-      df.viper <- df.viper %>% as.matrix() %>% melt() %>% 
+      df.viper <- df.viper %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Sample %in% select_samples,
                Gene %in% select_gene_cats$Gene) %>% 
@@ -90,7 +83,9 @@ merge_assays <- function(select_samples,
       
     } else {
       
-      df.viper <- df.viper %>% as.matrix() %>% melt() %>% 
+      df.viper <- df.viper %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Gene %in% select_gene_cats$Gene,
                Sample %in% select_samples) %>% 
@@ -110,7 +105,8 @@ merge_assays <- function(select_samples,
     # Select proteins available
     select_proteins <- protein_rna_table %>% 
       filter(RNA %in% select_gene_cats$Gene) %>% 
-      pull(Protein) %>% as.character()  
+      pull(Protein) %>% 
+      as.character()  
     
     # Subset down to select proteins
     df.rppa <- df.rppa[rownames(df.rppa) %in% select_proteins,]
@@ -126,7 +122,9 @@ merge_assays <- function(select_samples,
     if (nrow(df.protein) > 0) {
       
       # Melt to long, then merge with protein/RNA table to get gene names
-      df.protein <- df.protein %>% as.matrix() %>% melt() %>% 
+      df.protein <- df.protein %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Protein', 'Sample', 'Zscore')) %>%
         left_join(protein_rna_table) %>% 
         filter(RNA != "") %>% distinct() %>%
@@ -168,10 +166,13 @@ merge_assays <- function(select_samples,
     if (nrow(df.phospho) > 0) {
       
       # Melt to long, then merge with protein/RNA table to get gene names
-      df.phospho <- df.phospho %>% as.matrix() %>% melt() %>% 
+      df.phospho <- df.phospho %>% 
+        as.matrix() %>% 
+        melt() %>% 
         setNames(c('Protein', 'Sample', 'Zscore')) %>% 
         left_join(protein_rna_table) %>% 
-        filter(RNA != "") %>% distinct() %>%
+        filter(RNA != "") %>% 
+        distinct() %>%
         select(Sample, RNA, Protein, Zscore)
       
       # Compute change between pairs
@@ -192,7 +193,7 @@ merge_assays <- function(select_samples,
           mutate(Assay = 'Phospho') 
         
         
-        # Otherwise use value  
+      # Otherwise use value  
       } else {
         
         df.phospho <- df.phospho %>% 
@@ -232,8 +233,10 @@ merge_assays <- function(select_samples,
     if (!is.null(df.list[['Protein']])) {
       
       select_proteins <- df.list[['Protein']] %>%
-        pull(Protein) %>% as.character() %>%
-        unique() %>% sort()
+        pull(Protein) %>% 
+        as.character() %>%
+        unique() %>% 
+        sort()
       
     } else {
       
@@ -244,8 +247,10 @@ merge_assays <- function(select_samples,
     if (!is.null(df.list[['Phospho']])) {
       
       select_phosphos <- df.list[['Phospho']] %>%
-        pull(Phospho) %>% as.character() %>%
-        unique() %>% sort()
+        pull(Phospho) %>% 
+        as.character() %>%
+        unique() %>% 
+        sort()
       
     } else {
       
@@ -255,12 +260,22 @@ merge_assays <- function(select_samples,
     
     protein_rna_tbl <- protein_rna_tbl %>% 
       filter(RNA %in% select_gene_cats$Gene) %>%
-      filter(Protein %in% c(select_proteins, select_phosphos))
+      filter(Protein %in% c(select_proteins, 
+                            select_phosphos))
     
     merged_names <- merge_rna_protein_table(protein_rna_tbl) %>% arrange(Protein, Gene)
     
     # Update all gene names from each assay dataframe to new merged gene/protein names
-    if (Zchange) {value.var <- 'Zchange'} else {value.var <- 'Zscore'}
+    if (Zchange) {
+      
+      value.var <- 'Zchange'
+      
+    } else {
+      
+      value.var <- 'Zscore'
+      
+    }
+    
     select_cols <- c('Sample', 'FullName', value.var, 'Assay')
     
     for (n in names(df.list)) {
@@ -312,9 +327,13 @@ merge_assays <- function(select_samples,
   
   # Order for acast?
   if (!is.null(select_assays)) {
+    
     all_assays <- select_assays
+    
   } else {
+    
     all_assays <- c('RNA', 'Viper', 'Protein', 'Phospho')
+    
   }
   
   df.merged$Assay <- factor(df.merged$Assay, levels = all_assays)
@@ -324,7 +343,17 @@ merge_assays <- function(select_samples,
     sub.df <- df.merged %>% filter(Sample == s) 
     
     # Add to list of matrices
-    if (Zchange) {value.var <- 'Zchange'} else {value.var <- 'Zscore'}
+    if (Zchange) { 
+      
+      value.var <- 'Zchange'
+      
+    } else {
+      
+      value.var <- 'Zscore'
+      
+    }
+    
+    
     assay_mats[[s]] <- acast(sub.df, Gene ~ Assay, value.var = value.var)
     
     if (fill_all_assays) {
@@ -341,3 +370,7 @@ merge_assays <- function(select_samples,
   return(assay_mats)
   
 }  
+
+
+
+
