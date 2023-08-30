@@ -9,7 +9,7 @@
 
 # Function for integrating change across multiple RNA and protein assays
 merge_assays <- function(select_samples, 
-                         meta_table, 
+                         meta, 
                          df.rna = NULL, 
                          df.viper = NULL, 
                          df.rppa = NULL,
@@ -20,15 +20,13 @@ merge_assays <- function(select_samples,
                          select_assays = NULL) {
   
   
-  
-  
-  
-  
   # Subset meta table
-  meta_table <- meta_table %>% 
+  meta <- meta %>% 
     select(Sample, Patient, HTAN, HtanID, Date, Biopsy) %>% 
     distinct() %>% 
     arrange(Date)
+  
+  
   
   # Store assay tables here
   df.list <- list()
@@ -42,7 +40,7 @@ merge_assays <- function(select_samples,
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Sample %in% select_samples,
                Gene %in% select_gene_cats$Gene) %>% 
-        left_join(meta_table) %>% 
+        left_join(meta) %>% 
         group_by(Patient, Gene) %>%
         arrange(Date, .by_group = TRUE) %>% 
         mutate(Count = n()) %>% 
@@ -79,7 +77,7 @@ merge_assays <- function(select_samples,
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
         filter(Sample %in% select_samples,
                Gene %in% select_gene_cats$Gene) %>% 
-        left_join(meta_table) %>% 
+        left_join(meta) %>% 
         group_by(Patient, Gene) %>%
         arrange(Date, .by_group = TRUE) %>% 
         mutate(Count = n()) %>% 
@@ -104,6 +102,7 @@ merge_assays <- function(select_samples,
     df.list[['Viper']] <- df.viper
     
   }
+  
   
   # Scale RPPA and split protein and phosphoprotein
   if (!is.null(df.rppa)) {
@@ -138,7 +137,7 @@ merge_assays <- function(select_samples,
         
         df.protein <- df.protein %>% 
           filter(Sample %in% select_samples) %>% 
-          left_join(meta_table) %>% 
+          left_join(meta) %>% 
           group_by(Patient, Protein, RNA) %>%
           arrange(Date, .by_group = TRUE) %>% 
           mutate(Count = n()) %>% 
@@ -180,7 +179,7 @@ merge_assays <- function(select_samples,
         
         df.phospho <- df.phospho %>% 
           filter(Sample %in% select_samples) %>% 
-          left_join(meta_table) %>% 
+          left_join(meta) %>% 
           group_by(Patient, Protein, RNA) %>%
           arrange(Date, .by_group = TRUE) %>% 
           mutate(Count = n()) %>% 
@@ -212,233 +211,14 @@ merge_assays <- function(select_samples,
   
   
   
-  # Scale clinicalIHC
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.clinicalIHC)) {
-    
-    df.clinicalIHC <- df.clinicalIHC[rownames(df.clinicalIHC) %in% select_gene_cats$Gene,,drop=FALSE]
-    
-    df.clinicalIHC <- t(scale(t(df.clinicalIHC),scale = TRUE, center = TRUE))
-    
-    if (Zchange) {
-      
-      df.clinicalIHC <- df.clinicalIHC %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Gene %in% select_gene_cats$Gene) %>%
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.clinicalIHC)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'cIHC') 
-      
-    } else {
-      
-      df.clinicalIHC <- df.clinicalIHC %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Gene %in% select_gene_cats$Gene) %>%
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 'cIHC') 
-      
-    }
-    
-    df.list[['cIHC']] <- df.clinicalIHC
-    
-  }
-  
-  # Convert to long format and compute change; return difference using second sample
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.cosmx)) {
-    
-    df.cosmx <- df.cosmx[rownames(df.cosmx) %in% select_gene_cats$Gene,]
-    
-    # NOT TESTED
-    if (Zchange) {
-      
-      df.cosmx <-  df.cosmx %>% as.matrix() %>% melt() %>% setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.cosmx)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'CosMX_RNA') 
-      
-    } else {
-      
-      df.cosmx <- df.cosmx %>% as.matrix() %>% melt() %>% setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% select(Sample, Gene, Zscore) %>% mutate(Assay = 'CosMX_RNA') 
-      
-    }
-    
-    df.list[['CosMX_RNA']] <- df.cosmx
-    
-  }
-  
-  # cycIF
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.cycIF)) {
-    
-    select_cycIF_markers <- cycIF_rna_tbl %>% filter(RNA %in% select_gene_cats$Gene) %>% 
-      pull(Protein) %>% as.character()
-    
-    df.cycIF <- df.cycIF[rownames(df.cycIF) %in% select_cycIF_markers,,drop=FALSE]
-    
-    df.cycIF <- t(scale(t(df.cycIF),scale = TRUE, center = TRUE))
-    
-    if (Zchange) {
-      
-      df.cycIF <- df.cycIF %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>%
-        setNames(c('Protein', 'Sample', 'Zscore')) %>% 
-        left_join(cycIF_rna_tbl) %>%
-        select(Sample, RNA, Zscore) %>% distinct() %>%
-        setNames(c('Sample', 'Gene', 'Zscore')) %>%
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.cycIF)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 't-CycIF') 
-      
-    } else {
-      
-      df.cycIF <- df.cycIF %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>%
-        setNames(c('Protein', 'Sample', 'Zscore')) %>% 
-        left_join(cycIF_rna_tbl) %>%
-        select(Sample, RNA, Zscore) %>% distinct() %>%
-        setNames(c('Sample', 'Gene', 'Zscore')) %>%
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 't-CycIF') 
-      
-    }
-    
-    df.list[['t-CycIF']] <- df.cycIF
-    
-  }
-  
-  # mIHC
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.mIHC)) {
-    
-    select_mIHC_markers <- mIHC_rna_tbl %>% filter(RNA %in% select_gene_cats$Gene) %>% 
-      pull(Protein) %>% as.character()
-    
-    df.mIHC <- df.mIHC[rownames(df.mIHC) %in% select_mIHC_markers,,drop=FALSE]
-    
-    df.mIHC <- t(scale(t(df.mIHC),scale = TRUE, center = TRUE))
-    
-    if (Zchange) {
-      
-      df.mIHC <- df.mIHC %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>%
-        setNames(c('Protein', 'Sample', 'Zscore')) %>% 
-        left_join(mIHC_rna_tbl, by = 'Protein') %>%
-        select(Sample, RNA, Zscore) %>% distinct() %>%
-        setNames(c('Sample', 'Gene', 'Zscore')) %>%
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.mIHC)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'mIHC') 
-      
-    } else {
-      
-      df.mIHC <- df.mIHC %>% as.matrix() %>% melt() %>% 
-        mutate_at(vars(value), ~replace(., is.nan(.), 0)) %>%
-        setNames(c('Protein', 'Sample', 'Zscore')) %>% 
-        left_join(mIHC_rna_tbl, by = 'Protein') %>%
-        select(Sample, RNA, Zscore) %>% distinct() %>%
-        setNames(c('Sample', 'Gene', 'Zscore')) %>%
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 'mIHC') 
-      
-    }
-    
-    df.list[['mIHC']] <- df.mIHC
-    
-  }
   
   
-  # Mutation scores
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.mutation_scores)) {
-    
-    df.mutation_scores <- df.mutation_scores[rownames(df.mutation_scores) %in% select_gene_cats$Gene,,drop = FALSE]
-    
-    if (Zchange) {
-      
-      df.mutation_scores <- df.mutation_scores %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.mutation_scores)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'Mutation Signature') 
-      
-    } else {
-      
-      df.mutation_scores <- df.mutation_scores %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 'Mutation Signature') 
-      
-    }
-    
-    df.list[['Mutation Signature']] <- df.mutation_scores
-    
-  }
+ 
   
   
-  # Pancancer mutation scores
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.pancancer)) {
-    
-    df.pancancer <- df.pancancer[rownames(df.pancancer) %in% select_gene_cats$Gene,,drop = FALSE]
-    
-    if (Zchange) {
-      
-      df.pancancer <- df.pancancer %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.pancancer)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'pancancer') 
-      
-    } else {
-      
-      df.pancancer <- df.pancancer %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 'pancancer') 
-      
-    }
-    
-    df.list[['pancancer']] <- df.pancancer
-    
-  }
   
-  # BRCA mutation scores
-  # NO LONGER FUNTIONAL!!!
-  if (!is.null(df.brca)) {
-    
-    df.brca <- df.brca[rownames(df.brca) %in% select_gene_cats$Gene,,drop = FALSE]
-    
-    if (Zchange) {
-      
-      df.brca <- df.brca %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% left_join(meta_table) %>% 
-        group_by(Patient) %>% filter(n() == 2*nrow(df.brca)) %>% ungroup() %>%
-        group_by(Patient, Gene) %>% arrange(Date) %>% mutate(Zchange = diff(Zscore)) %>% 
-        dplyr::slice(n()) %>% ungroup() %>% select(Sample, Gene, Zchange) %>% mutate(Assay = 'BRCA') 
-      
-    } else {
-      
-      df.brca <- df.brca %>% as.matrix() %>% melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% 
-        select(Sample, Gene, Zscore) %>% mutate(Assay = 'BRCA') 
-      
-    }
-    
-    df.list[['BRCA']] <- df.brca
-    
-  }
+  
+  
   
   
   ##########################################
@@ -534,7 +314,7 @@ merge_assays <- function(select_samples,
   if (!is.null(select_assays)) {
     all_assays <- select_assays
   } else {
-    all_assays <- c('RNA', 'Viper', 'pancancer', 'BRCA', 'Protein', 'Phospho', 'cIHC', 'mIHC', 't-CycIF', 'CosMX_RNA')
+    all_assays <- c('RNA', 'Viper', 'Protein', 'Phospho')
   }
   
   df.merged$Assay <- factor(df.merged$Assay, levels = all_assays)
