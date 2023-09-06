@@ -437,11 +437,49 @@ make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
 }
 
 
+# Function to create box around column of samples to highlight in heatmap
+box_samples <- function(mat, samples, htName, dend, box_col = 'white', box_width = 1) {
+  
+  # Find columns on heatmap
+  idx <- which(order.dendrogram(dend) %in% which(colnames(mat) %in% samples))
+  rBound <- idx / ncol(mat)
+  lBound <- rBound - (1/ncol(mat))
+  
+  # Merge overlapping boundaries
+  df <- round(data.frame(lBound, rBound), digits = 6) %>% 
+    mutate(indx = c(0, cumsum(as.numeric(lead(lBound)) > cummax(as.numeric(rBound)))[-n()])) %>%
+    group_by(indx) %>% 
+    summarise(lBound = min(lBound), rBound = max(rBound)) %>% 
+    data.frame()
+  lBound <- df$lBound
+  rBound <- df$rBound
+  
+  # Overlay on top of heatmap
+  decorate_heatmap_body(htName, { 
+    
+    for (i in 1:length(lBound)) {  
+      
+      # Vertical lines (between cells)
+      grid.lines(c(lBound[i], lBound[i]), c(0, 1), gp = gpar(lty = 1, lwd = box_width, col = box_col))
+      grid.lines(c(rBound[i], rBound[i]), c(0, 1), gp = gpar(lty = 1, lwd = box_width, col = box_col))
+      
+      # Horizontal lines (top and bottom of heatmap)
+      grid.lines(c(lBound[i], rBound[i]), c(0, 0), gp = gpar(lty = 1, lwd = 0.5, col = box_col))
+      grid.lines(c(lBound[i], rBound[i]), c(1, 1), gp = gpar(lty = 1, lwd = 0.5, col = box_col))
+      
+    }
+    
+  })
+  
+}
+
 # TODO: Rename function; also create separate parameter for legend instead of passing list
 save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
                               pointsize = 12, lgd_direction = 'horizontal', 
                               max_width = NULL, add_anno_title = NULL, add_width = 0, 
-                              add_height = 0, lgd_gap = unit(2, 'mm')) {
+                              add_height = 0, lgd_gap = unit(2, 'mm'),
+                              mark_samples = NULL, mat = NULL, 
+                              col_dend = NULL, box_col = NULL, box_width = NULL) {
   
   # Pull out heatmap and legend objects
   ht <- ht_objects[[1]]
@@ -477,7 +515,17 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NUL
   draw(ht, annotation_legend_list = pd, ht_gap = ht_gap, 
        heatmap_legend_side = 'bottom', 
        annotation_legend_side = 'bottom')
-  dev.off()
+  
+  # Create box around select samples if specified
+  if (!(is.null(mark_samples))) {
+    
+    box_samples(mat, mark_samples, 'heat', col_dend, box_col = box_col, box_width = box_width)
+    
+  }
+  try(dev.off(), silent = TRUE)
+  
+  
+  #dev.off()
   
 }
 
@@ -623,6 +671,10 @@ make_heatmap <- function(mat,
                          row_title_rot = 0,
                          
                          bar_anno = NULL,
+                         
+                         mark_samples = NULL,
+                         box_col = 'white', 
+                         box_width = 1,
                          
                          fn = NULL, 
                          return_heat_objects = FALSE) {
@@ -837,6 +889,7 @@ make_heatmap <- function(mat,
   
   # Main heatmap body
   ht <- Heatmap(mat, col = col_func, show_heatmap_legend = FALSE, 
+                name = 'heat',
                 show_row_names = show_row_names,
                 left_annotation = rowAnno, rect_gp = rect_gp,
                 row_split = row_split, row_title_rot = row_title_rot,
@@ -867,7 +920,10 @@ make_heatmap <- function(mat,
     
     save_htan_heatmap(list(ht, lgd_list), fn, ht_gap = unit(1, "mm"), 
                       add_height = add_height, add_width = add_width,
-                      res = res, max_width = max_lgd_width)
+                      res = res, max_width = max_lgd_width,
+                      mark_samples = mark_samples,
+                      mat = mat, col_dend = cluster_columns,
+                      box_width = box_width, box_col = box_col)
     
   }
   
