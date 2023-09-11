@@ -1,4 +1,4 @@
-
+#!/usr/bin/env Rscript
 
 #######################################################################################
 #
@@ -12,7 +12,8 @@ source('function_scripts/heatmap_functions.R')
 source('function_scripts/load_marker_sets.R')
 source('function_scripts/onco_heatmap_functions.R')
 
-
+# Temp: Store test figures here
+results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures"
 
 
 ###################################
@@ -179,8 +180,7 @@ make_oncoplots(cnvs.htan,
                select_variants = dna_cats.htan$Gene,
                category_table = dna_cats.htan,
                
-               #pre = paste0(results_dir.htan,'/dna_figures/oncoplots/select_cats_fixed_'), 
-               pre = paste0(results_dir.htan,'/dna_figures/oncoplots/test_'), 
+               pre = paste0(results_dir.test,'/oncoplot_test'), 
                
                min_vars = 1,
                
@@ -211,7 +211,7 @@ gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT",
 
 
 # CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
-ht.fn <- paste(results_dir.htan, "rna_figures/heatmaps/gsva_test_heatmap.png", sep = '/')
+ht.fn <- paste(results_dir.test, "gsva_test_heatmap.png", sep = '/')
 
 # TODO: Change function name
 make_heatmap(gsva.htan,
@@ -238,7 +238,6 @@ make_heatmap(gsva.htan,
 
 
 
-
 ###########################################################################
 #
 #  FIGURE 2C: INTEGRATED HEATMAP OF INTRINSIC RNA AND PROTEIN 
@@ -262,7 +261,7 @@ ppws.intrinsic <- c("Cell_cycle_progression", "G0_G1", "G1_S", "G2_M",
 
 
 # Heatmap splitting by patient
-ht.fn <- paste(results_dir.htan, "rppa_figures/heatmaps/rppa_pathways_test_heatmap.png", sep = '/')
+ht.fn <- paste(results_dir.test, "rppa_pathways_test_heatmap.png", sep = '/')
 
 make_heatmap(ppws.htan, 
              meta.htan,

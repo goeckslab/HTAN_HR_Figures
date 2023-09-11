@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 
 #######################################################################################
 #
@@ -119,7 +120,7 @@ gsva_pws.extrinsic <- c("Activated CD8 T cell", "ALLOGRAFT_REJECTION", "Antigen 
 
 
 # CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
-ht.fn <- paste(results_dir.htan, "rna_figures/heatmaps/gsva_test_heatmap.png", sep = '/')
+ht.fn <- paste(results_dir.test, "gsva_test_heatmap.png", sep = '/')
 
 # TODO: Change function name
 make_heatmap(gsva.htan,

@@ -438,7 +438,8 @@ make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
 
 
 # Function to create box around column of samples to highlight in heatmap
-box_samples <- function(mat, samples, htName, dend, box_col = 'white', box_width = 1) {
+box_samples <- function(mat, samples, htName, dend, box_col = 'white', 
+                        box_width = 1, merge_overlaps = FALSE) {
   
   # Find columns on heatmap
   idx <- which(order.dendrogram(dend) %in% which(colnames(mat) %in% samples))
@@ -446,6 +447,8 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white', box_width
   lBound <- rBound - (1/ncol(mat))
   
   # Merge overlapping boundaries
+  if (merge_overlaps) {
+    
   df <- round(data.frame(lBound, rBound), digits = 6) %>% 
     mutate(indx = c(0, cumsum(as.numeric(lead(lBound)) > cummax(as.numeric(rBound)))[-n()])) %>%
     group_by(indx) %>% 
@@ -453,6 +456,8 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white', box_width
     data.frame()
   lBound <- df$lBound
   rBound <- df$rBound
+  
+  }
   
   # Overlay on top of heatmap
   decorate_heatmap_body(htName, { 

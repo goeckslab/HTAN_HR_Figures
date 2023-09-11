@@ -7,7 +7,7 @@
 # --------------------------------------------------------------------------
 
 library(ComplexHeatmap)
-
+library(rlang)
 
 # Set color scheme for variant types
 variant_cols <- c('Gain' = "#E31A1C", 
@@ -655,7 +655,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
     
     if (nrow(do.call(pmax,var_list.all)) >= 1) {
       
-      if (!is.null(pre)) {fn <- paste(pre, "oncoprint_all.png", sep = '')} else {fn <- NULL}
+      if (!is.null(pre)) {fn <- paste(pre, "_all.png", sep = '')} else {fn <- NULL}
       
       oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, select_samples = select_samples, 
                                     fn = fn, 
@@ -687,7 +687,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
     
     if (nrow(do.call(pmax,var_list.cnvs)) >= 1) {
       
-      if (!is.null(pre)) {fn <- paste(pre, "oncoprint_cnvs.png", sep = '')} else {fn <- NULL}
+      if (!is.null(pre)) {fn <- paste(pre, "_cnvs.png", sep = '')} else {fn <- NULL}
       
       
       oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, select_samples = select_samples, 
@@ -716,7 +716,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
     
     if (nrow(do.call(pmax,var_list.snvs)) >= 1) {
       
-      if (!is.null(pre)) {fn <- paste(pre, "oncoprint_snvs.png", sep = '')} else {fn <- NULL}
+      if (!is.null(pre)) {fn <- paste(pre, "_snvs.png", sep = '')} else {fn <- NULL}
       oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, select_samples = select_samples, 
                                      
                                      fn = fn, column_title = column_title, top_anno = top_anno, 
