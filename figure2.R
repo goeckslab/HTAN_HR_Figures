@@ -245,7 +245,19 @@ make_heatmap(gsva.htan,
 #
 ###########################################################################
 
+gene_cats.htan
 
+
+# TODO: Scale or not scale parameters 
+merge_assays(meta.hrplus, 
+                         df.rna = exp.scaled.hrplus, 
+                         df.viper = viper.hrplus, 
+                         df.rppa = rppa.hrplus,
+                         protein_rna_table = protein_rna_tbl, 
+                         select_gene_cats = gene_cats.htan, 
+                         fill_all_assays = TRUE,
+                         Zchange = TRUE, 
+                         select_samples = NULL)
 
 ###########################################################################
 #

@@ -2,6 +2,115 @@
 
 library(dplyr)
 
+# Function to create new merged gene/protein names when integrating 
+#  genes, proteins, and phosphoproteins across assays
+merge_rna_protein_table <- function(protein_rna_tbl) {
+  
+  # Remove proteins/phosphoproteins without a matching gene 
+  protein_rna_tbl <- protein_rna_tbl %>% 
+    filter(RNA != '') %>% 
+    distinct()
+  
+  # Separate proteins and phosphoproteins
+  protein.tbl <- protein_rna_tbl[grep('_p', protein_rna_tbl$Protein, invert = TRUE),,drop = FALSE]
+  phospho.tbl <- protein_rna_tbl[grep('_p', protein_rna_tbl$Protein, invert = FALSE),,drop = FALSE] %>% 
+    setNames(c('Phospho', 'RNA', 'Category'))
+  
+  # Merge back together with proteins and phosphoproteins now as separate columns
+  merge_gene_names <- full_join(protein.tbl, phospho.tbl) %>%
+    distinct() %>% 
+    select(Category, RNA, Protein, Phospho) %>%
+    arrange(RNA, Phospho)
+  
+  # Separate phosphoprotein protein names and actual phospho groups
+  merge_gene_names <- merge_gene_names %>%
+    separate(col = 'Phospho', into = c('Phospho', 'Phosphogroup'), sep = '_', extra = 'merge')
+  
+  # Loop through and create new merged names
+  merge_gene_names$FullName <- ''
+  
+  for (i in 1:nrow(merge_gene_names)) {
+    
+    gene <- merge_gene_names[i,2]
+    protein <- merge_gene_names[i,3]
+    phospho <- merge_gene_names[i,4]
+    pGroup <- merge_gene_names[i,5]
+    
+    # Merge genes and proteins without phospho data
+    if (is.na(phospho)) {
+      
+      if (gsub('-', '', str_to_lower(gene)) == gsub('-', '', str_to_lower(protein))) {
+        
+        merge_gene_names[i,'FullName'] <- gene
+        
+      } else {
+        
+        merge_gene_names[i,'FullName'] <- paste(gene, protein, sep = '/')
+        
+      }
+      
+      # Merge genes/phosphoproteins withoutprotein data    
+    } else if (is.na(protein)) {
+      
+      if (gsub('-', '', str_to_lower(gene)) == gsub('-', '', str_to_lower(phospho))) {
+        
+        merge_gene_names[i,'FullName'] <- paste(gene, pGroup, sep = '/')
+        
+      } else {
+        
+        merge_gene_names[i,'FullName'] <- paste0(gene, '/', phospho, '_', pGroup)
+        
+      }
+      
+      # Merge genes/proteins with phospho data    
+    } else {
+      
+      if (gsub('-', '', str_to_lower(gene)) == gsub('-', '', str_to_lower(protein)) &
+          gsub('-', '', str_to_lower(gene)) == gsub('-', '', str_to_lower(phospho))) {
+        
+        merge_gene_names[i,'FullName'] <- paste(gene, pGroup, sep = '/')
+        
+      } else if (gsub('-', '', str_to_lower(protein)) == gsub('-', '', str_to_lower(phospho))) {
+        
+        merge_gene_names[i,'FullName'] <- paste0(gene, '/', protein, '_', pGroup)
+        
+      } else {
+        
+        merge_gene_names[i,'FullName'] <- paste0(gene, '/', protein, '/', phospho, '_', pGroup)
+        
+      }
+      
+    }
+    
+  }
+  
+  # Manually fill some others
+  merge_gene_names[merge_gene_names$FullName == 'AURKA/Aurora-A/Aurora-ABC_pT288_pT232_pT198', 'FullName'] <- 'AURKA_pT288_pT232_pT198'
+  merge_gene_names[merge_gene_names$FullName == 'BAK1/BAK','FullName'] <- 'BAK1'
+  merge_gene_names[merge_gene_names$FullName == 'PRKCA/PKCALPHA/PKC-a-b-II_pT638_T641','FullName'] <- 'PRKCA/PKC-a-b-II_pT638_T641'
+  merge_gene_names[merge_gene_names$FullName == 'STAT5A/STAT5ALPHA','FullName'] <- 'STAT5A'
+  merge_gene_names[merge_gene_names$FullName == 'GZMB/Granzyme-B','FullName'] <- 'GZMB'
+  merge_gene_names[merge_gene_names$FullName == 'RPS6KB1/P70S6K1/P70S6K_pT389','FullName'] <- 'RPS6KB1/P70S6K1_pT389'
+  merge_gene_names[merge_gene_names$FullName == 'CCND1/CYCLIND1','FullName'] <- 'CCND1'
+  merge_gene_names[merge_gene_names$FullName == 'CCND3/Cyclin-D3','FullName'] <- 'CCND3'
+  merge_gene_names[merge_gene_names$FullName == 'CCNE1/CYCLINE1','FullName'] <- 'CCNE1'
+  merge_gene_names[merge_gene_names$FullName == 'CCNB1/CYCLINB1','FullName'] <- 'CCNB1'
+  merge_gene_names[merge_gene_names$FullName == 'CHEK1/CHK1_pS296','FullName'] <- 'CHK1_pS296'
+  merge_gene_names[merge_gene_names$FullName == 'CHEK1/CHK1_pS345','FullName'] <- 'CHK1_pS345'
+  merge_gene_names[merge_gene_names$FullName == 'CHEK2/CHK2_pT68','FullName'] <- 'CHK2_pT68'
+  merge_gene_names[merge_gene_names$FullName == 'EIF4EBP1/X4EBP1_pS65','FullName'] <- 'EIF4EBP1/4EBP1_pS65'
+  merge_gene_names[merge_gene_names$FullName == 'EIF4EBP1/X4EBP1_pT37T46','FullName'] <- 'EIF4EBP1/4EBP1_pT37T46'
+  
+  # Merge phosphoproteins back to original names
+  merge_gene_names <- merge_gene_names %>% 
+    mutate(Phospho = case_when(!is.na(Phospho) ~ paste(Phospho, Phosphogroup, sep = '_'),
+                               TRUE ~ Phospho)) %>%
+    select(RNA, Protein, Phospho, FullName) %>%
+    setNames(c('Gene', "Protein", 'Phospho', 'FullName'))
+  
+  return(merge_gene_names)
+  
+}
 
 # Function for integrating change across multiple RNA and protein assays
 merge_assays <- function(meta, 
@@ -13,7 +122,7 @@ merge_assays <- function(meta,
                          fill_all_assays = FALSE,
                          Zchange = TRUE, 
                          select_samples = NULL,
-                         select_assays = NULL) {
+                         select_assays = c("RNA", "Viper", "Protein", "Phospho")) {
   
   # Store assay tables here
   df.list <- list()
@@ -263,7 +372,8 @@ merge_assays <- function(meta,
       filter(Protein %in% c(select_proteins, 
                             select_phosphos))
     
-    merged_names <- merge_rna_protein_table(protein_rna_tbl) %>% arrange(Protein, Gene)
+    merged_names <- merge_rna_protein_table(protein_rna_tbl) %>% 
+      arrange(Protein, Gene)
     
     # Update all gene names from each assay dataframe to new merged gene/protein names
     if (Zchange) {
