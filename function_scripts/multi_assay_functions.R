@@ -244,9 +244,17 @@ merge_assays <- function(meta,
         
         df.protein <- df.protein %>% 
           filter(Sample %in% select_samples) %>% 
-          left_join(meta) %>% 
+          #data.table() %>% print()
+        
+        
+        #print(head(meta))
+        
+          left_join(meta, by = c('Sample' = 'Sample')) %>% 
+         
+        
           group_by(Patient, Protein, RNA) %>%
-          arrange(Date, .by_group = TRUE) %>% 
+        
+        arrange(Date, .by_group = TRUE) %>% 
           mutate(Count = n()) %>% 
           filter(Count >= 2) %>%
           mutate(Zchange = Zscore - lag(Zscore)) %>%
