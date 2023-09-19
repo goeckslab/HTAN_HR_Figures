@@ -112,54 +112,76 @@ merge_rna_protein_table <- function(protein_rna_tbl) {
   
 }
 
+
+# Function to subset assay matrix by select samples and features
+# TODO: May move to separate functions script
+subset_assay_data <- function(df, select_samples = NULL, select_features = NULL) {
+  
+  if (!is.null(select_samples)) {
+    
+    df <- df[,colnames(df) %in% select_samples,drop=FALSE]
+    
+  }
+  
+  if (!is.null(select_features)) {
+    
+    df <- df[rownames(df) %in% select_features,,drop=FALSE]
+    
+  }
+  
+  return(df)
+  
+}
+
 # Function for integrating change across multiple RNA and protein assays
 merge_assays <- function(meta, 
                          df.rna = NULL, 
                          df.viper = NULL, 
                          df.rppa = NULL,
+                         scale_rna = FALSE,
+                         scale_viper = FALSE,
+                         scale_rppa = FALSE,
                          protein_rna_table = NULL, 
                          select_gene_cats = NULL, 
+                         select_genes = NULL,
                          fill_all_assays = FALSE,
                          Zchange = TRUE, 
                          select_samples = NULL,
                          select_assays = c("RNA", "Viper", "Protein", "Phospho")) {
   
+  # Select columns from meta table
+  meta <- meta %>% select(Patient, Sample, Date)
+  
+  # Subset assay data
+  
+  
   # Store assay tables here
   df.list <- list()
   
-  # Convert to long format and compute change; return difference using second sample
+  # Format RNA expression
   if (!is.null(df.rna)) {
     
+    # Compuate change in value between paired samples
     if (Zchange) {
       
       df.rna <- df.rna %>% 
-        as.matrix() %>% 
-        melt() %>% 
-        setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples,
-               Gene %in% select_gene_cats$Gene) %>% 
-        left_join(meta) %>% 
-        group_by(Patient, Gene) %>%
-        arrange(Date, .by_group = TRUE) %>% 
-        mutate(Count = n()) %>% 
-        filter(Count >= 2) %>%
-        mutate(Zchange = Zscore - lag(Zscore)) %>%
-        ungroup() %>%
-        filter(!is.na(Zchange)) %>%
-        select(Sample, Gene, Zchange) %>% 
-        mutate(Assay = 'RNA') 
+        compute_paired_change(meta, return_matrix = FALSE) %>%
+        mutate(Zchange = Change, 
+               Assay = 'RNA') 
       
+    # Else, format to long using relative values  
     } else {
       
       df.rna <- df.rna %>% 
         as.matrix() %>% 
         melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples) %>% 
         select(Sample, Gene, Zscore) %>% 
         mutate(Assay = 'RNA') 
       
     }
+    
+    print(head(df.rna))
     
     df.list[['RNA']] <- df.rna
     
@@ -177,8 +199,8 @@ merge_assays <- function(meta,
         as.matrix() %>% 
         melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Sample %in% select_samples,
-               Gene %in% select_gene_cats$Gene) %>% 
+        #filter(Sample %in% select_samples,
+        #       Gene %in% select_gene_cats$Gene) %>% 
         left_join(meta) %>% 
         group_by(Patient, Gene) %>%
         arrange(Date, .by_group = TRUE) %>% 
@@ -196,12 +218,14 @@ merge_assays <- function(meta,
         as.matrix() %>% 
         melt() %>% 
         setNames(c('Gene', 'Sample', 'Zscore')) %>% 
-        filter(Gene %in% select_gene_cats$Gene,
-               Sample %in% select_samples) %>% 
+        #filter(Gene %in% select_gene_cats$Gene,
+        #       Sample %in% select_samples) %>% 
         select(Sample, Gene, Zscore) %>% 
         mutate(Assay = 'Viper') 
       
     }
+    
+    print(head(df.viper))
     
     df.list[['Viper']] <- df.viper
     
@@ -213,12 +237,12 @@ merge_assays <- function(meta,
     
     # Select proteins available
     select_proteins <- protein_rna_table %>% 
-      filter(RNA %in% select_gene_cats$Gene) %>% 
+      #filter(RNA %in% select_gene_cats$Gene) %>% 
       pull(Protein) %>% 
       as.character()  
     
     # Subset down to select proteins
-    df.rppa <- df.rppa[rownames(df.rppa) %in% select_proteins,]
+    #df.rppa <- df.rppa[rownames(df.rppa) %in% select_proteins,]
     
     # Scale RPPA data
     df.rppa <- t(scale(t(df.rppa),scale = TRUE, center = TRUE)) 
@@ -243,7 +267,7 @@ merge_assays <- function(meta,
       if (Zchange) {
         
         df.protein <- df.protein %>% 
-          filter(Sample %in% select_samples) %>% 
+          #filter(Sample %in% select_samples) %>% 
           #data.table() %>% print()
         
         
@@ -268,12 +292,14 @@ merge_assays <- function(meta,
       } else {
         
         df.protein <- df.protein %>% 
-          filter(Sample %in% select_samples) %>% 
+          #filter(Sample %in% select_samples) %>% 
           select(Sample, Protein, RNA, Zscore) %>% 
           setNames(c('Sample', 'Protein', 'Gene', 'Zscore')) %>% 
           mutate(Assay = 'Protein') 
         
       }
+      
+      print(head(df.protein))
       
       df.list[['Protein']] <- df.protein
       
@@ -296,7 +322,7 @@ merge_assays <- function(meta,
       if (Zchange) {
         
         df.phospho <- df.phospho %>% 
-          filter(Sample %in% select_samples) %>% 
+          #filter(Sample %in% select_samples) %>% 
           left_join(meta) %>% 
           group_by(Patient, Protein, RNA) %>%
           arrange(Date, .by_group = TRUE) %>% 
@@ -314,12 +340,14 @@ merge_assays <- function(meta,
       } else {
         
         df.phospho <- df.phospho %>% 
-          filter(Sample %in% select_samples) %>% 
+          #filter(Sample %in% select_samples) %>% 
           select(Sample, Protein, RNA, Zscore) %>% 
           setNames(c('Sample', 'Phospho', 'Gene', 'Zscore')) %>% 
           mutate(Assay = 'Phospho') 
         
       }
+      
+      print(head(df.phospho))
       
       df.list[['Phospho']] <- df.phospho
       
@@ -328,10 +356,6 @@ merge_assays <- function(meta,
   }
   
   
-  
-  
-  
- 
   
   
   

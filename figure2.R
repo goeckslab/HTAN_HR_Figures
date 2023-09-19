@@ -251,16 +251,17 @@ gene_cats.htan
 # TODO: FIX ISSUE OF NOW HAVING "RNA" (RNA-seq) IN META TABLE
 
 # TODO: Scale or not scale parameters 
-merge_assays(meta.hrplus, 
-             df.rna = exp.scaled.hrplus, 
-             df.viper = viper.hrplus, 
-             df.rppa = rppa.hrplus,
-             protein_rna_table = protein_rna_tbl, 
-             select_gene_cats = gene_cats.htan, 
-             fill_all_assays = TRUE,
-             
-             
-             Zchange = TRUE)
+assays.test <- merge_assays(meta.hrplus, 
+                            df.rna = exp.scaled.hrplus, 
+                            df.viper = viper.hrplus, 
+                            df.rppa = rppa.hrplus,
+                            protein_rna_table = protein_rna_tbl, 
+                            select_gene_cats = gene_cats.htan,
+                            select_genes = gene_cats.htan$Gene,
+                            fill_all_assays = TRUE,
+                            
+                            
+                            Zchange = TRUE)
 
 ###########################################################################
 #

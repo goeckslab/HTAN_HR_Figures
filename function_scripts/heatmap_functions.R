@@ -617,12 +617,24 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
 # Function to compute change across pairs of patient biopsies 
 #   Needs meta with date specifying biopsy timepoint
 # TODO: May store in separate library script if more space needed
-compute_paired_change <- function(df, meta) {
+compute_paired_change <- function(df, meta, return_matrix = TRUE, 
+                                  select_features = NULL) {
   
-  df %>% 
+  # Melt to long format
+  df <- df %>% 
     as.matrix() %>%
     melt() %>%
-    setNames(c('Feature', 'Sample', 'Value')) %>%
+    setNames(c('Feature', 'Sample', 'Value')) 
+  
+  # Subset to select features
+  if (!is.null(select_features)) {
+    
+    df <- df %>% filter(Feature %in% select_features)
+    
+  }
+  
+  # Merge with meta table to get pairs and compute change
+  df <- df %>%
     left_join(meta) %>%
     select(Patient, Sample, Date, Feature, Value) %>% 
     group_by(Patient, Feature) %>% 
@@ -631,8 +643,16 @@ compute_paired_change <- function(df, meta) {
     mutate(Change = Value - lag(Value)) %>%
     ungroup() %>%
     filter(!is.na(Change)) %>%
-    acast(Feature ~ Sample, value.var = 'Change') %>%
-    return()
+    select(Sample, Feature, Change)
+  
+  # Cast to matrix
+  if (return_matrix) {
+    
+    df <- acast(df, Feature ~ Sample, value.var = 'Change')
+    
+  }
+  
+  return(df)
   
 }  
 
@@ -657,6 +677,7 @@ make_heatmap <- function(mat,
                          
                          heatmap_width = unit(6, 'in'), add_width = 0, 
                          heatmap_height = unit(8, 'in'), add_height = 0,
+                         cell_width = NULL, cell_height = NULL,
                          res = NULL, rect_gp = gpar(col = NA), 
                          
                          top_anno = NULL, btm_anno = NULL,
@@ -774,6 +795,8 @@ make_heatmap <- function(mat,
   
   }
   
+  # Set heatmap height based on cell height if provided
+  if (!is.null(cell_height)) {heatmap_height <- cell_height*nrow(mat)}
   
   # ~~~~~~~~~~~~~~~~~~~ COLUMN PARAMETERS ~~~~~~~~~~~~~~~~~~~~~ #
   
@@ -865,6 +888,9 @@ make_heatmap <- function(mat,
   
   # Cluster columns if specified
   if (cluster_columns) {cluster_columns <- create_dendrogram(t(mat))}
+  
+  # Set heatmap width based on cell width if provided
+  if (!is.null(cell_width)) {heatmap_width <- cell_width*ncol(mat)}
   
   # Create top heatmap object to control column clustering and splitting
   ht.top <- Heatmap(matrix(0, nrow = 0, ncol = ncol(mat)), 
