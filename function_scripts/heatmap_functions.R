@@ -7,6 +7,9 @@
 ######################################################
 
 library(ComplexHeatmap)
+library(circlize)
+library(tidyr)
+library(dplyr)
 
 
 # Annotation colors
@@ -439,10 +442,18 @@ make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
 
 # Function to create box around column of samples to highlight in heatmap
 box_samples <- function(mat, samples, htName, dend, box_col = 'white', 
+                        order_columns = NULL,
                         box_width = 1, merge_overlaps = FALSE) {
   
   # Find columns on heatmap
-  idx <- which(order.dendrogram(dend) %in% which(colnames(mat) %in% samples))
+  if (class(dend) == 'dendrogram') {
+    idx <- which(order.dendrogram(dend) %in% which(colnames(mat) %in% samples))
+  } else if (!is.null(order_columns)) {
+    idx <- which(order_columns %in% samples)
+  } else {
+    idx <- which(colnames(mat) %in% samples)
+  }
+  print(idx)
   rBound <- idx / ncol(mat)
   lBound <- rBound - (1/ncol(mat))
   
@@ -478,12 +489,25 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white',
   
 }
 
+# Function to capture size of final heatmap and all of its components
+#   to ensure proper image size during saving
+calc_ht_size = function(ht, unit = "inch") {
+  
+  w = ComplexHeatmap:::width(ht)
+  w = convertX(w, unit, valueOnly = TRUE)
+  h = ComplexHeatmap:::height(ht)
+  h = convertY(h, unit, valueOnly = TRUE)
+  
+  return(c(w, h))
+
+}
+
 # TODO: Rename function; also create separate parameter for legend instead of passing list
 save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
                               pointsize = 12, lgd_direction = 'horizontal', 
                               max_width = NULL, add_anno_title = NULL, add_width = 0, 
                               add_height = 0, lgd_gap = unit(2, 'mm'),
-                              mark_samples = NULL, mat = NULL, 
+                              mark_samples = NULL, mat = NULL, order_columns = NULL,
                               col_dend = NULL, box_col = NULL, box_width = NULL) {
   
   # Pull out heatmap and legend objects
@@ -524,7 +548,9 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NUL
   # Create box around select samples if specified
   if (!(is.null(mark_samples))) {
     
-    box_samples(mat, mark_samples, 'heat', col_dend, box_col = box_col, box_width = box_width)
+    box_samples(mat, mark_samples, 'heat', col_dend, 
+                order_columns = order_columns,
+                box_col = box_col, box_width = box_width)
     
   }
   try(dev.off(), silent = TRUE)
@@ -674,6 +700,7 @@ make_heatmap <- function(mat,
                          lgd_gridsize = 4,
                          lgd_rows = 2, 
                          max_lgd_width = NULL, 
+                         lgd_gap = unit(2, 'mm'),
                          
                          heatmap_width = unit(6, 'in'), add_width = 0, 
                          heatmap_height = unit(8, 'in'), add_height = 0,
@@ -686,8 +713,11 @@ make_heatmap <- function(mat,
                          split_column_by_pheno = NULL, 
                          column_split_order = NULL,
                          split_column_by_dendrogram = NULL,
+                         order_columns = NULL,
+                         order_columns_by = NULL,
                          
                          cluster_rows = FALSE,
+                         keep_row_order = TRUE,
                          category_table = NULL, 
                          split_by_cat = TRUE, 
                          cat_order = NULL, 
@@ -716,9 +746,12 @@ make_heatmap <- function(mat,
     
   } else {
     
-    select_features <- intersect(select_features, rownames(mat))
+    select_features <- select_features[select_features %in% intersect(select_features, rownames(mat))]
     
   }
+  
+  # Sort unless keeping original order
+  if (!keep_row_order) {select_features <- sort(select_features)}
   
   # Subset matrix to select features
   mat <- mat[select_features,,drop = FALSE]
@@ -742,7 +775,9 @@ make_heatmap <- function(mat,
   if (!is.null(category_table)) {
     
     # Subset category table down to select features
-    category_table <- category_table[category_table[[1]] %in% select_features,]
+    select_features <- select_features[select_features %in% category_table[[1]]]
+    #category_table <- category_table[category_table[[1]] %in% select_features,]
+    category_table <- category_table[select_features,]
     mat <- mat[category_table[[1]],,drop = FALSE]
     
     # Color annotate categories
@@ -892,9 +927,23 @@ make_heatmap <- function(mat,
   # Set heatmap width based on cell width if provided
   if (!is.null(cell_width)) {heatmap_width <- cell_width*ncol(mat)}
   
+  
+  
+  # Set column order
+  if (!is.null(order_columns_by)) {
+    
+    order_columns <- names(sort(mat[order_columns_by,], decreasing = TRUE, na.last = TRUE))
+    
+  }
+  
+  
+  
   # Create top heatmap object to control column clustering and splitting
-  ht.top <- Heatmap(matrix(0, nrow = 0, ncol = ncol(mat)), 
+  mat.top <- matrix(0, nrow = 0, ncol = ncol(mat))
+  colnames(mat.top) <- colnames(mat)
+  ht.top <- Heatmap(mat.top,
                     cluster_columns = cluster_columns,
+                    column_order = order_columns,
                     column_split = col_split,
                     column_title = column_title,
                     heatmap_width = heatmap_width)
@@ -951,8 +1000,8 @@ make_heatmap <- function(mat,
     
     save_htan_heatmap(list(ht, lgd_list), fn, ht_gap = unit(1, "mm"), 
                       add_height = add_height, add_width = add_width,
-                      res = res, max_width = max_lgd_width,
-                      mark_samples = mark_samples,
+                      res = res, max_width = max_lgd_width, lgd_gap = lgd_gap,
+                      mark_samples = mark_samples, order_columns = order_columns,
                       mat = mat, col_dend = cluster_columns,
                       box_width = box_width, box_col = box_col)
     

@@ -5,6 +5,7 @@
 #
 ##########################################################
 
+library(dplyr)
 
 # Helper function to make feature category table from named list
 make_category_table <-  function(feature_sets, feature_name = 'Gene') {

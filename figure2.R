@@ -209,7 +209,6 @@ gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT",
                         "REACTOME_REPLICATION_STRESS", "REACTOME_S_PHASE", 
                         "UNFOLDED_PROTEIN_RESPONSE")
 
-
 # CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
 ht.fn <- paste(results_dir.test, "gsva_test_heatmap.png", sep = '/')
 
@@ -224,6 +223,9 @@ make_heatmap(gsva.htan,
                            "Cellular Process", "Metabolic"),
              bar_anno = 'g1Score',
              cluster_columns = TRUE,
+             
+             keep_row_order = FALSE,
+             
              select_features = gsva_pws.intrinsic,
              show_column_annotation_legend = FALSE,
              heatmap_width = unit(5.5, 'in'),

@@ -8,6 +8,7 @@
 
 library(ComplexHeatmap)
 library(rlang)
+library(dplyr)
 
 # Set color scheme for variant types
 variant_cols <- c('Gain' = "#E31A1C", 
@@ -21,6 +22,9 @@ variant_cols <- c('Gain' = "#E31A1C",
                   "Nonsense Substitution" = "#FF7F00", 
                   "Promoter Substitution" = "#FDBF6F", 
                   "Splice Site Substitution" = "#CAB2D6", 
+                  "Splice Site Deletion" = 'grey2', # change
+                  "Nonsense Insertion" = 'grey10', # change
+                  "In Frame Deletion/insertion (indels)" = 'grey15', #change (and probably not keep?)
                   'SNV' = "black", 
                   'background' = "grey80")
 
@@ -55,6 +59,10 @@ alter_fun = list(
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["In Frame Insertion"], col = NA))
   }, 
+  "Nonsense Insertion" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h - unit(size.cell,  "pt"), 
+              gp = gpar(fill = variant_cols["Nonsense Insertion"], col = NA))
+  }, 
   "Intron Substitution" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["Intron Substitution"], col = NA))
@@ -69,11 +77,15 @@ alter_fun = list(
   }, 
   "Promoter Substitution" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
-              gp = gpar(fill = variant_cols[v], col = NA))
+              gp = gpar(fill = variant_cols["Promoter Substitution"], col = NA))
   }, 
   "Splice Site Substitution" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["Splice Site Substitution"], col = NA))
+  },
+  "Splice Site Deletion" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+              gp = gpar(fill = variant_cols["Splice Site Deletion"], col = NA))
   },
   "SNV" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
