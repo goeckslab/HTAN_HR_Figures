@@ -7,10 +7,16 @@
 #######################################################################################
 
 # Source function libraries
-source('function_scripts/load_htan_data.R')
-source('function_scripts/heatmap_functions.R')
-source('function_scripts/load_marker_sets.R')
-source('function_scripts/onco_heatmap_functions.R')
+#source('function_scripts/load_htan_data.R')
+#source('function_scripts/heatmap_functions.R')
+#source('function_scripts/load_marker_sets.R')
+#source('function_scripts/onco_heatmap_functions.R')
+
+# TEMP
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_htan_data.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/heatmap_functions.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/onco_heatmap_functions.R')
 
 # Temp: Store test figures here
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures"
