@@ -17,14 +17,16 @@ variant_cols <- c('Gain' = "#E31A1C",
                   "Frameshift Insertion" = "#FFFF99", 
                   "In Frame Deletion" = "#B2DF8A", 
                   "In Frame Insertion" = "#6A3D9A", 
+                  "In Frame Deletion/insertion (indels)" = 'grey15', #change (and probably not keep?)
+                  "In Frame Indel" = "#9F4D23FF", #change (and probably not keep?)
                   "Intron Substitution" = "#FB9A99", 
                   "Missense Substitution" = "#33A02C", 
                   "Nonsense Substitution" = "#FF7F00", 
                   "Promoter Substitution" = "#FDBF6F", 
                   "Splice Site Substitution" = "#CAB2D6", 
-                  "Splice Site Deletion" = 'grey2', # change
-                  "Nonsense Insertion" = 'grey10', # change
-                  "In Frame Deletion/insertion (indels)" = 'grey15', #change (and probably not keep?)
+                  "Splice Site Deletion" = "blue", # change?
+                  "Nonsense Insertion" = 'darkred', # change?
+                  'Multi-hit' = 'black',
                   'SNV' = "black", 
                   'background' = "grey80")
 
@@ -59,6 +61,10 @@ alter_fun = list(
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["In Frame Insertion"], col = NA))
   }, 
+  "In Frame Indel" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+              gp = gpar(fill = variant_cols["In Frame Indel"], col = NA))
+  }, 
   "Nonsense Insertion" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h - unit(size.cell,  "pt"), 
               gp = gpar(fill = variant_cols["Nonsense Insertion"], col = NA))
@@ -90,6 +96,10 @@ alter_fun = list(
   "SNV" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["SNV"], col = NA))
+  }, 
+  "Multi-hit" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+              gp = gpar(fill = variant_cols["Multi-hit"], col = NA))
   }, 
   "ND_CNV" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
@@ -402,6 +412,12 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
                             
                             category_table = NULL, cat_order = NULL,
                             
+                            lgd_fontsize = 12, 
+                            lgd_gridsize = 4,
+                            lgd_rows = 3,
+                            lgd_gap = unit(2, 'mm'),
+                            lgd_pack_gap = unit(2, 'mm'),
+                          
                             show_pct = TRUE, pct_side = 'right', row_names_side = 'left',
                             fix_order = FALSE, keep_original_column_order = TRUE, 
                             ht_height = NULL, ht_width = NULL) {
@@ -468,18 +484,32 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
     right_anno <- onco_row_anno(var_list)  
     
     # Create oncoplot legend (passed to oncoPrint function)
-    oncoLgd = list(title = "Alterations", at = names(variant_cols), labels = names(variant_cols), nrow = 3,
-                   title_gp = gpar(fontsize = 12, fontface = "bold"), labels_gp = gpar(fontsize = 12))
+    oncoLgd = list(title = "Alterations", at = names(variant_cols), 
+                   
+                   labels = names(variant_cols), nrow = lgd_rows,
+                   labels_gp = gpar(fontsize = lgd_fontsize),
+                   
+                   grid_height = unit(lgd_gridsize, 'mm'), 
+                   grid_width = unit(lgd_gridsize, 'mm'), 
+                   gap = lgd_gap,
+                   
+                   title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
     
     # Same legend but for drawing png image
     varLgd <- Legend(title = oncoLgd[['title']], labels = names(var_list), nrow = oncoLgd[['nrow']],
                      legend_gp = gpar(fill = variant_cols[names(var_list)]), 
+                     
+                     grid_height = oncoLgd[['grid_height']], grid_width = oncoLgd[['grid_width']],
+                     gap = lgd_gap,
+                     
                      title_gp = oncoLgd[['title_gp']], labels_gp = oncoLgd[['labels_gp']])
     
     # Organize all legends into single list and pack
     lgd_list <- make_legend_list(row_lgd_list = NULL, top_lgd_list = top_anno[[2]], 
                                  ht_lgd = varLgd, btm_lgd_list = bottom_anno[[2]])
-    pd <- packLegend(list = lgd_list, direction = 'horizontal', column_gap = unit(2, 'mm'), 
+    pd <- packLegend(list = lgd_list, direction = 'horizontal', 
+                     column_gap = lgd_pack_gap, 
+                     
                      max_width = unit(13, 'in'))
     
     # So barplots aren't automatically created
@@ -528,7 +558,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
                       column_split = column_split,
                       top_annotation = faux_top_anno, 
                       right_annotation = right_anno,
-                      row_order = order_rows,
+                      
+                      #row_order = order_rows,
+                      row_order = NULL,
+                      
                       row_split = split_rows, 
                       row_title_rot = 0, 
                       row_gap = unit(2, "mm"), 
@@ -583,6 +616,13 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
       
     }
     
+    # NEW
+    # Set column order
+    col_order <- colnames(biVar)[memoSort(biVar)]
+    
+    onco_args[['column_order']] <- col_order
+    
+    
     # Cluster rows if specified
     if (cluster_rows == TRUE & nrow(biVar) >= 2) { 
       
@@ -592,10 +632,15 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
     }
     
     # Create oncoPrint heatmap object
-    oncoHT <- invoke(oncoPrint, .args = onco_args)
+    #oncoHT <- purrr::invoke(oncoPrint, .args = onco_args)
+    oncoHT <- rlang::invoke(oncoPrint, .args = onco_args)
+    
+    draw(top_anno)
     
     # Append top/bottom annotations 
     ht <- top_anno %v% oncoHT %v% bottom_anno[[1]]
+    
+    draw(ht)
     
     # Draw and save oncoplot to file
     if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, column_title)}
@@ -615,7 +660,8 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
     onco_args[['show_row_dend']] <- FALSE
     
     # Run oncoPrint() with list of parameters
-    oncoHT <- invoke(oncoPrint, .args = onco_args)
+    #oncoHT <- purrr::invoke(oncoPrint, .args = onco_args)
+    oncoHT <- rlang::invoke(oncoPrint, .args = onco_args)
     
     return(list(oncoHT,varLgd))
     
@@ -634,6 +680,11 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            select_variants = NULL, min_vars = 1, 
                            top_anno = NULL, bottom_anno = NULL, 
                            ht_height = NULL, ht_width = NULL, 
+                           lgd_fontsize = 12, 
+                           lgd_gridsize = 4,
+                           lgd_rows = 3,
+                           lgd_gap = unit(2, 'mm'),
+                           lgd_pack_gap = unit(2, 'mm'),
                            column_split = NULL, column_split_order = NULL,
                            cluster_columns = FALSE, column_title = NULL, 
                            
@@ -674,6 +725,12 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                     column_title = column_title, 
                                     top_anno = top_anno, bottom_anno = bottom_anno, 
                                     
+                                    lgd_fontsize = lgd_fontsize, 
+                                    lgd_gridsize = lgd_gridsize,
+                                    lgd_rows = lgd_rows,
+                                    lgd_gap = lgd_gap,
+                                    lgd_pack_gap = lgd_pack_gap, 
+                                    
                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                     
                                     column_split = column_split, column_split_order = column_split_order,
@@ -706,6 +763,12 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
+                                     lgd_fontsize = lgd_fontsize, 
+                                     lgd_gridsize = lgd_gridsize,
+                                     lgd_rows = lgd_rows,
+                                     lgd_gap = lgd_gap,
+                                     lgd_pack_gap = lgd_pack_gap, 
+                                     
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
                                      column_split = column_split, column_split_order = column_split_order,
@@ -733,6 +796,13 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      
                                      fn = fn, column_title = column_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
+                                     
+                                     lgd_fontsize = lgd_fontsize, 
+                                     lgd_gridsize = lgd_gridsize,
+                                     lgd_rows = lgd_rows,
+                                     lgd_gap = lgd_gap,
+                                     lgd_pack_gap = lgd_pack_gap, 
+                                     
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
                                      column_split = column_split, column_split_order = column_split_order,
