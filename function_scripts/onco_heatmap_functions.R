@@ -140,6 +140,39 @@ draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
   
 }
 
+# Function to sort columns using mutual exclusivity
+meSort <- function(m) {
+  
+  # Order rows decreasing by frequency
+  row_order <- sort(rowSums(m), decreasing=TRUE, index.return=TRUE)$ix;
+  
+  # Compute score for each olumn
+  scoreCol <- function(x) {
+    
+    score <- 0
+    
+    for (i in 1:length(x)) {
+      
+      if (x[i]) {
+        
+        score <- score + 2^(length(x)-i);
+        
+      }
+    }
+    
+    return(score)
+    
+  }
+  
+  # Get column scores
+  scores <- apply(m[row_order, ], 2, scoreCol)
+  
+  # Set new order and return
+  col_order <- sort(scores, decreasing=TRUE, index.return=TRUE)$ix
+  
+  return(col_order)
+  
+}
 
 # Function for creating bar annotation showing column counts of variant types
 onco_column_anno <- function(var_list) {
@@ -574,6 +607,9 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
                       col = variant_cols)
     
     
+    ########## THIS WHOLE SECTION NEEDS REVISION ###################
+    
+    
     # Create dendrogram objects if clustering is specified and add to argument list
     if (cluster_columns == TRUE) { 
       
@@ -596,6 +632,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
           
         }
         
+        # TODO: IS THIS STILL BEING USED?
         faux_mat <- matrix(nrow = 0, ncol = ncol(biVar))
         colnames(faux_mat) <- colnames(biVar)
         
@@ -612,15 +649,19 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
         
         onco_args[['column_order']] <- select_samples
         
-      } 
+      }  else {
+        
+        # NEW
+        # Set column order
+        col_order <- colnames(biVar)[meSort(biVar)]
+        
+        onco_args[['column_order']] <- col_order
+        
+      }
       
     }
     
-    # NEW
-    # Set column order
-    col_order <- colnames(biVar)[memoSort(biVar)]
     
-    onco_args[['column_order']] <- col_order
     
     
     # Cluster rows if specified
@@ -631,16 +672,18 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
       
     }
     
+    
+    ########## THIS WHOLE SECTION ABOVE NEEDS REVISION ###################
+    
+    
+    
+    
     # Create oncoPrint heatmap object
     #oncoHT <- purrr::invoke(oncoPrint, .args = onco_args)
     oncoHT <- rlang::invoke(oncoPrint, .args = onco_args)
     
-    draw(top_anno)
-    
     # Append top/bottom annotations 
     ht <- top_anno %v% oncoHT %v% bottom_anno[[1]]
-    
-    draw(ht)
     
     # Draw and save oncoplot to file
     if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, column_title)}
