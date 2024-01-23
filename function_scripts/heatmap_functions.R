@@ -63,6 +63,20 @@ colors.gsva <- c("Cellular Component" = "#EC579AFF",
                  "Receptor Signaling" = "#15983DFF", 
                  "Signaling" = "purple")
 
+# Function to determine darkness of background color for overlaying black and white text
+isDark <- function(colr) { 
+  
+  if (sum(col2rgb(colr) * c(299, 587,114))/1000 < 123) {
+    
+    return("White")
+    
+  } else {
+    
+    return("Black")
+  }
+  
+}
+
 # Function for building heatmap annotation legend objects
 make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
                                  treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,

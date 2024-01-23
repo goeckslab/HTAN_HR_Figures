@@ -437,11 +437,18 @@ code <- function(column) {
 
 
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
-build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, column_title = '', 
+build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, heatmap_title = '', 
                             
                             top_anno = NULL, bottom_anno = NULL, 
                             cluster_columns = FALSE, cluster_rows = FALSE, 
-                            column_order = NULL, column_split = NULL, column_split_order = NULL,
+                            column_order = NULL, 
+                            
+                            column_split = NULL, 
+                            column_split_order = NULL,
+                            column_title = NULL,
+                            show_column_split_titles = TRUE,
+                            column_gap = unit(3, "mm"), # library default is unit(1, "mm"),
+                            ht_border = FALSE, gap_border = TRUE,
                             
                             category_table = NULL, cat_order = NULL,
                             
@@ -504,14 +511,32 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
       
       column_split <- meta[colnames(biVar),column_split]
       
-      # Set order if provided
+      # Set order if provided, else sort alphabetically
       if (!is.null(column_split_order)) {
         
         column_split <- factor(column_split, levels = column_split_order)
         
+      } else {
+        
+        column_split_order <- column_split %>% sort() %>% unique()
+        column_split <- factor(column_split, levels = unique(column_split_order))
+        
       }
+      
+      # Set split titles using column_title parameter
+      if (show_column_split_titles) {
+        
+        column_title = unique(column_split_order)
+        
+        column_title_gp = gpar(fill = patient_cols.mmtert[column_title])
+        
+      } 
 
+      # Add gap between splits
+      if (gap_border) {ht_border = TRUE}
+      
     }
+    
     
     # Build row annotations for right side of oncoplot
     right_anno <- onco_row_anno(var_list)  
@@ -588,7 +613,13 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
                       remove_empty_columns = FALSE, 
                       remove_empty_rows = FALSE, 
                       show_column_names = FALSE,
+                      
                       column_split = column_split,
+                      column_title = column_title,
+                      column_title_gp = column_title_gp,
+                      column_gap = column_gap,
+                      border = ht_border,
+                      
                       top_annotation = faux_top_anno, 
                       right_annotation = right_anno,
                       
@@ -686,7 +717,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, co
     ht <- top_anno %v% oncoHT %v% bottom_anno[[1]]
     
     # Draw and save oncoplot to file
-    if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, column_title)}
+    if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, heatmap_title)}
     
     # Return a second oncoPrint object containing just the heatmap (and Legend object)
     onco_args[['right_annotation']] <- faux_row_anno
@@ -729,9 +760,11 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            lgd_gap = unit(2, 'mm'),
                            lgd_pack_gap = unit(2, 'mm'),
                            column_split = NULL, column_split_order = NULL,
-                           cluster_columns = FALSE, column_title = NULL, 
+                           cluster_columns = FALSE, heatmap_title = NULL, 
                            
                            fix_order = FALSE, keep_original_column_order = TRUE,
+                           
+                           all_variants = TRUE, cnvs_only = FALSE, snvs_only = FALSE,
                            
                            cluster_rows = FALSE, row_names_side = 'left', 
                            show_pct = TRUE, pct_side = 'right',
@@ -757,15 +790,15 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
   meta.sub <- var_lists[[5]]
   
   # CNVS AND SNVS
-  if (length(var_list.all) >= 1) {
+  if (length(var_list.all) >= 1 & all_variants) {
     
     if (nrow(do.call(pmax,var_list.all)) >= 1) {
       
-      if (!is.null(pre)) {fn <- paste(pre, "_all.png", sep = '')} else {fn <- NULL}
+      if (!is.null(pre)) {fn <- paste(pre, ".png", sep = '')} else {fn <- NULL}
       
       oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, select_samples = select_samples, 
                                     fn = fn, 
-                                    column_title = column_title, 
+                                    heatmap_title = heatmap_title, 
                                     top_anno = top_anno, bottom_anno = bottom_anno, 
                                     
                                     lgd_fontsize = lgd_fontsize, 
@@ -795,7 +828,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
   }
   
   # CNVS ONLY
-  if (length(var_list.cnvs) >= 1) {
+  if (length(var_list.cnvs) >= 1 & cnvs_only) {
     
     if (nrow(do.call(pmax,var_list.cnvs)) >= 1) {
       
@@ -803,7 +836,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
       
       
       oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, select_samples = select_samples, 
-                                     fn = fn, column_title = column_title, top_anno = top_anno, 
+                                     fn = fn, heatmap_title = heatmap_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
                                      lgd_fontsize = lgd_fontsize, 
@@ -830,14 +863,14 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
   }
   
   # SNVS ONLY
-  if (length(var_list.snvs) >= 1) {
+  if (length(var_list.snvs) >= 1 & snvs_only) {
     
     if (nrow(do.call(pmax,var_list.snvs)) >= 1) {
       
       if (!is.null(pre)) {fn <- paste(pre, "_snvs.png", sep = '')} else {fn <- NULL}
       oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, select_samples = select_samples, 
                                      
-                                     fn = fn, column_title = column_title, top_anno = top_anno, 
+                                     fn = fn, heatmap_title = heatmap_title, top_anno = top_anno, 
                                      bottom_anno = bottom_anno, 
                                      
                                      lgd_fontsize = lgd_fontsize, 
