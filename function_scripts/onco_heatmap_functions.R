@@ -23,12 +23,18 @@ variant_cols <- c('Gain' = "#E31A1C",
                   "Missense Substitution" = "#33A02C", 
                   "Nonsense Substitution" = "#FF7F00", 
                   "Promoter Substitution" = "#FDBF6F", 
-                  "Splice Site Substitution" = "#CAB2D6", 
+                  #"Splice Site Substitution" = "#CAB2D6", 
+                  "Splice Site Substitution" = "#B1A0BA", 
                   "Splice Site Deletion" = "blue", # change?
                   "Nonsense Insertion" = 'darkred', # change?
                   'Multi-hit' = 'black',
+                  # Simpified SNVs
+                  "Substitution" = "#33A02C", 
+                  "Insertion/Deletion" = "#FF7F00", 
                   'SNV' = "black", 
-                  'background' = "grey80")
+                  #'background' = "grey80"
+                  'background' = "grey82"
+                  )
 
 # Oncoplot cell and variant sizes
 size.cell <- 1
@@ -93,6 +99,14 @@ alter_fun = list(
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["Splice Site Deletion"], col = NA))
   },
+  "Substitution" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+              gp = gpar(fill = variant_cols["Substitution"], col = NA))
+  }, 
+  "Insertion/Deletion" = function (x, y, w, h) {
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+              gp = gpar(fill = variant_cols["Insertion/Deletion"], col = NA))
+  }, 
   "SNV" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["SNV"], col = NA))
@@ -118,7 +132,8 @@ alter_fun = list(
 
 # Function for saving oncoplot as png image
 # TODO: Could probably just use save heatmap function if formmated correctly
-draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
+draw_oncoprint <- function(ht, fn, pd, 
+                           column_title = NULL) {
   
   # Draw dummy plot to determine figure size
   pdf(NULL)
@@ -141,10 +156,14 @@ draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
 }
 
 # Function to sort columns using mutual exclusivity
-meSort <- function(m) {
+meSort <- function(m, row_order = NULL) {
   
   # Order rows decreasing by frequency
-  row_order <- sort(rowSums(m), decreasing=TRUE, index.return=TRUE)$ix;
+  if (is.null(row_order)) {
+    
+    row_order <- sort(rowSums(m), decreasing=TRUE, index.return=TRUE)$ix
+    
+  }
   
   # Compute score for each olumn
   scoreCol <- function(x) {
@@ -173,6 +192,9 @@ meSort <- function(m) {
   return(col_order)
   
 }
+
+
+
 
 # Function for creating bar annotation showing column counts of variant types
 onco_column_anno <- function(var_list) {
@@ -428,29 +450,35 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, min_vars = 1,
 
 
 
-# Try waterfall sort?
-code <- function(column) {
-  n <- length(column)
-  pow <- 2^-(0:(n-1))
-  return (column %*% pow)
-}
 
 
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
 build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, heatmap_title = '', 
                             
                             top_anno = NULL, bottom_anno = NULL, 
-                            cluster_columns = FALSE, cluster_rows = FALSE, 
+                            cluster_columns = FALSE, 
                             column_order = NULL, 
+                            fix_order = FALSE, 
+                            keep_original_column_order = TRUE, 
                             
                             column_split = NULL, 
                             column_split_order = NULL,
                             column_title = NULL,
                             show_column_split_titles = TRUE,
-                            column_gap = unit(3, "mm"), # library default is unit(1, "mm"),
-                            ht_border = FALSE, gap_border = TRUE,
+                            column_split_fill_cols = NULL,
+                            column_title_side = 'top',
+                            column_title_gp = gpar(fontsize = 14),
+                            column_gap = unit(2.5, "mm"), # library default is unit(1, "mm"),
+                            ht_border = FALSE, 
+                            gap_border = TRUE,
                             
                             category_table = NULL, cat_order = NULL,
+                            
+                            cluster_rows = FALSE, 
+                            row_barplot = TRUE,
+                            show_pct = TRUE, 
+                            pct_side = 'right', 
+                            row_names_side = 'left',
                             
                             lgd_fontsize = 12, 
                             lgd_gridsize = 4,
@@ -458,89 +486,23 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             lgd_gap = unit(2, 'mm'),
                             lgd_pack_gap = unit(2, 'mm'),
                           
-                            show_pct = TRUE, pct_side = 'right', row_names_side = 'left',
-                            fix_order = FALSE, keep_original_column_order = TRUE, 
+                            ht_gap = unit(4, "mm"),
+                            
                             ht_height = NULL, ht_width = NULL) {
   
   # Compute binary matrix for row and column ordering
-  biVar <- do.call(pmax,var_list)
+  biMat <- do.call(pmax,var_list)
   
-  # Split by categories if table provided
-  if (!is.null(category_table)) {
-    
-    var.df <- data.frame(Gene = rownames(biVar))
-    category_table <- left_join(var.df, category_table)
-    rownames(category_table) <- category_table$Gene
-    category_table <- category_table[rownames(biVar),]
-    split_rows <- category_table[,2]
-    ht_border <- TRUE
-    
-  } else {
-    
-    split_rows <- NULL
-    ht_border <- FALSE
-    
-  }
-  
-  # Set row order
-  order_rows <- rownames(biVar)[sort(rowSums(biVar), decreasing = TRUE, index.return = TRUE)$ix]
-  
-  # Order categories by order parameter or by highest count
-  if (!is.null(category_table)) { 
-    
-    if (is.null(cat_order)) {
-      
-      cat_order <- unique(category_table[order_rows,2])
-      
-    } 
-    
-    split_rows <- factor(split_rows, levels = cat_order) 
-    
-  }
+  # Compute summation matrix for row ordering tie breaker
+  sumMat <- Reduce('+', var_list)
   
   # Make sure at least one variant remains after subsetting/filtering step
-  if (nrow(biVar) > 0) {
-    
-    # Subset top_annotations if provided
-    meta$AnnoIndex <- 1:nrow(meta)
-    top_anno <- update_annotations(meta[colnames(biVar),], top_anno)
-    bottom_anno <- update_annotations(meta[colnames(biVar),], bottom_anno)
-    
-    # Split oncoplot by phenotype
-    if (!is.null(column_split)) {
-      
-      column_split <- meta[colnames(biVar),column_split]
-      
-      # Set order if provided, else sort alphabetically
-      if (!is.null(column_split_order)) {
-        
-        column_split <- factor(column_split, levels = column_split_order)
-        
-      } else {
-        
-        column_split_order <- column_split %>% sort() %>% unique()
-        column_split <- factor(column_split, levels = unique(column_split_order))
-        
-      }
-      
-      # Set split titles using column_title parameter
-      if (show_column_split_titles) {
-        
-        column_title = unique(column_split_order)
-        
-        column_title_gp = gpar(fill = patient_cols.mmtert[column_title])
-        
-      } 
-
-      # Add gap between splits
-      if (gap_border) {ht_border = TRUE}
-      
-    }
+  if (nrow(biMat) > 0) {
     
     
-    # Build row annotations for right side of oncoplot
-    right_anno <- onco_row_anno(var_list)  
+    ########### LEGEND PARAMETERS ##################
     
+    # TODO: Creating oncoLgd list first no longer needed?
     # Create oncoplot legend (passed to oncoPrint function)
     oncoLgd = list(title = "Alterations", at = names(variant_cols), 
                    
@@ -570,6 +532,128 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                      
                      max_width = unit(13, 'in'))
     
+    ######### END LEGEND PARAMETERS #################
+    
+    
+    
+    ######### ROW PARAMETERS ###########
+    
+    # Set row order first by (binary) percent altered, then by total alt types per gene, then by name
+    order_rows <- data.frame(Gene = rownames(biMat),
+                             Percent = rowSums(biMat), 
+                             Total = rowSums(sumMat)) %>%
+      mutate(Gene = as.character(Gene)) %>%
+      arrange(-Percent, -Total, Gene) %>%
+      pull(Gene)
+    
+    # Split by categories if table provided
+    if (!is.null(category_table)) {
+      
+      var.df <- data.frame(Gene = rownames(biMat))
+      category_table <- left_join(var.df, category_table)
+      rownames(category_table) <- category_table$Gene
+      category_table <- category_table[rownames(biMat),]
+      split_rows <- category_table[,2]
+      ht_border <- TRUE
+      
+      # Order categories by order parameter or by highest count
+      if (is.null(cat_order)) {
+        
+        cat_order <- unique(category_table[order_rows,2])
+        
+      } 
+      
+      split_rows <- factor(split_rows, levels = cat_order) 
+      
+    } else {
+      
+      split_rows <- NULL
+      
+    }
+  
+    # Build row annotations for right side of oncoplot
+    if (row_barplot) {
+      
+      right_anno <- onco_row_anno(var_list)  
+      
+    }  else {
+      
+      right_anno <- NULL
+      
+    }
+  
+    
+    # Cluster rows if specified
+    if (cluster_rows & nrow(biMat) >= 2) { 
+      
+      cluster_rows <- create_dendrogram(biMat)
+   
+    } else {
+      
+      cluster_rows <- NULL
+      
+    }
+    
+    
+    ########## END ROW PARAMETERS ##################
+    
+    
+    ############ COLUMN PARAMETERS ###################
+    
+    # Subset top_annotations if provided
+    meta$AnnoIndex <- 1:nrow(meta)
+    top_anno <- update_annotations(meta[colnames(biMat),], top_anno)
+    bottom_anno <- update_annotations(meta[colnames(biMat),], bottom_anno)
+    
+    # Split oncoplot by phenotype
+    if (!is.null(column_split)) {
+      
+      column_split <- meta[colnames(biMat),column_split]
+      
+      # Set order if provided, else sort alphabetically
+      if (!is.null(column_split_order)) {
+        
+        column_split <- factor(column_split, levels = column_split_order)
+        
+      } else {
+        
+        column_split_order <- column_split %>% sort() %>% unique()
+        column_split <- factor(column_split, levels = unique(column_split_order))
+        
+      }
+      
+      # Set split titles using column_title parameter
+      if (show_column_split_titles) {
+        
+        column_title = unique(column_split_order)
+        
+        # Set colors for column splits
+        if (is.null(column_split_fill_cols)) {
+          
+          column_split_fill_cols <- 'white'
+          column_split_border <- FALSE
+          
+        } else {
+          
+          #column_split_fill_cols <- rep(c('black', 'white'), length.out = length(column_title))
+          column_split_fill_cols <- column_split_fill_cols[column_title]
+          column_split_border <- TRUE
+          
+        }
+        
+        # Set column split header parameters
+        column_title_gp = gpar(fill = column_split_fill_cols,
+                               col = sapply(column_split_fill_cols, FUN = isDark),
+                               border = column_split_border)
+         
+      } 
+
+      # Add gap between splits
+      if (gap_border) {ht_border = TRUE}
+      
+    }
+    
+    
     # So barplots aren't automatically created
     if (is.null(top_anno[[1]])) {
       
@@ -581,21 +665,83 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
       
     }
     
-    # Create faux annotations so they aren't automatically created
+    # So column barplot isn't created automatically by oncoPrint function
     faux_top_anno <- HeatmapAnnotation(foo = anno_empty(border = FALSE, height = faux_height))
-    faux_row_anno <- rowAnnotation(foo = anno_empty(border = FALSE, height = unit(.000001, "mm")))
     
+    # Create dendrogram objects if clustering is specified and add to argument list
+    if (cluster_columns == TRUE) { 
+      
+      # NOTE: HEATMAP SPLITTING CURRENTLY DOES NOT WORK IF CLUSTERING 
+      #         COLUMNS (WOULD NEED TO ALLOW DEFAULT CLUSTERING BY 
+      #         ONCOPRINT WITHOUT MANUAL DENDROGRAM OBJECT)
+      top_anno <- Heatmap(matrix(nrow = 0, ncol = ncol(biMat)), heatmap_width = ht_width, 
+                          #column_split = column_split,
+                          #cluster_columns = cluster_columns
+                          cluster_columns = create_dendrogram(t(biMat))
+      ) %v% top_anno[[1]]
+      
+      col_order <- NULL
+      
+    } else {  
+      
+      # Else create column barplot 
+      top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
+      
+      # Fix order by select samples list or current 
+      #  column order, else use ME sort
+      if (fix_order) {
+        
+        if (is.null(select_samples)) {select_samples <- colnames(biMat)}
+        col_order <- select_samples
+        
+      }  else {
+        
+        # If splitting columns by group, sort independently by each keeping row order fixes
+        if (!is.null(column_split)) {
+          
+          col_order <- c()
+          column_groups <- unique(column_split)
+          for (cg in sort(column_groups)) {
+            
+            biMat.cg <- biMat[,column_split == cg]
+            cg.order <- colnames(biMat.cg)[meSort(biMat.cg, 
+                                                  #row_order = NULL
+                                                  row_order = order_rows
+                                                  )]
+            col_order <- c(col_order, cg.order)
+            
+          }
+          
+        } else {
+          
+          # Order columns using mutually exclusive sort
+          col_order <- colnames(biMat)[meSort(biMat)]
+          
+        }
+        
+      }
+      
+    }
+    
+    # TEST
+    #col_order <- NULL
+    #row_order <- NULL
+    
+
+    ############### END COLUMN PARAMETERS ####################
+    
+ 
     # Set dimensions of main heatmap if not specified
     if (is.null(ht_height)) {
       
-      if (nrow(biVar) > 15) {
-      
-          ht_height <- unit(11, 'in')
-      
+      if (nrow(biMat) > 15) {
+        
+        ht_height <- unit(11, 'in')
+        
       } else {
-      
-          ht_height <- unit(4, 'in')
-    
+        
+        ht_height <- unit(4, 'in')
+        
       }
       
     }
@@ -603,7 +749,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     if (is.null(ht_width)) {
       
       ht_width <- unit(18, 'in')
-    
+      
     }
     
     # Create initial set of arguments for oncoPrint
@@ -614,17 +760,20 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                       remove_empty_rows = FALSE, 
                       show_column_names = FALSE,
                       
+                      column_order = col_order,
                       column_split = column_split,
                       column_title = column_title,
                       column_title_gp = column_title_gp,
+                      column_title_side = column_title_side,
                       column_gap = column_gap,
                       border = ht_border,
                       
                       top_annotation = faux_top_anno, 
                       right_annotation = right_anno,
                       
-                      #row_order = order_rows,
-                      row_order = NULL,
+                      row_order = order_rows,
+                      #row_order = NULL,
+                      cluster_rows = cluster_rows,
                       
                       row_split = split_rows, 
                       row_title_rot = 0, 
@@ -637,76 +786,13 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                       width = ht_width,
                       col = variant_cols)
     
+    # Set cluster_rows parameter (for some reason it breaks if not set after creating initial list?)
+    onco_args[['cluster_rows']] <- cluster_rows
+ 
     
-    ########## THIS WHOLE SECTION NEEDS REVISION ###################
-    
-    
-    # Create dendrogram objects if clustering is specified and add to argument list
-    if (cluster_columns == TRUE) { 
-      
-      top_anno <- Heatmap(matrix(nrow = 0, ncol = ncol(biVar)), heatmap_width = ht_width, 
-                          cluster_columns = create_dendrogram(t(biVar))) %v% top_anno[[1]]
-      
-    } 
-    
-    else {  
-      
-      if (!is.null(column_split)) {
-        
-        if (fix_order) {
-          
-          top_order <- select_samples
-          
-        } else {
-          
-          top_order <- NULL
-          
-        }
-        
-        # TODO: IS THIS STILL BEING USED?
-        faux_mat <- matrix(nrow = 0, ncol = ncol(biVar))
-        colnames(faux_mat) <- colnames(biVar)
-        
-        top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
-        
-      } else {
-        
-        top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
-        
-      }
-      
-      # Fix order if specified
-      if (fix_order) {
-        
-        onco_args[['column_order']] <- select_samples
-        
-      }  else {
-        
-        # NEW
-        # Set column order
-        col_order <- colnames(biVar)[meSort(biVar)]
-        
-        onco_args[['column_order']] <- col_order
-        
-      }
-      
-    }
-    
-    
-    
-    
-    # Cluster rows if specified
-    if (cluster_rows == TRUE & nrow(biVar) >= 2) { 
-      
-      onco_args[['cluster_rows']] <- create_dendrogram(biVar)
-      onco_args[['show_pct']] <- FALSE
-      
-    }
-    
-    
-    ########## THIS WHOLE SECTION ABOVE NEEDS REVISION ###################
-    
-    
+    # TEST PROVIDING REAL ANNOTATION INSTEAD OF FAUX ANNOTATION
+    #print('TEST TOP ANNOTATION')
+    #onco_args[['top_annotation']] <- onco_column_anno(var_list)
     
     
     # Create oncoPrint heatmap object
@@ -716,14 +802,24 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     # Append top/bottom annotations 
     ht <- top_anno %v% oncoHT %v% bottom_anno[[1]]
     
+    # TODO: Merge draw_oncoprint and save_htan_heatmap
+    #        remove hardcode gaps and create parameter
+    
     # Draw and save oncoplot to file
-    if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, heatmap_title)}
+    #if (!is.null(fn)) {draw_oncoprint(ht, fn, pd, heatmap_title)}
     
-    # Return a second oncoPrint object containing just the heatmap (and Legend object)
-    onco_args[['right_annotation']] <- faux_row_anno
+    if (!is.null(fn)) {save_htan_heatmap(list(ht, lgd_list), fn, 
+                                         extend_w = 0, res_factor = 1,
+                                         ht_gap = ht_gap
+                                         )}
+    
+    # Return a second oncoPrint object containing just the 
+    #   heatmap (and legend object) without annotation objects
     onco_args[['show_pct']] <- FALSE
+    onco_args[['right_annotation']] <- rowAnnotation(foo = anno_empty(height = unit(.000001, "mm"),
+                                                                      border = FALSE))
     
-    # Keep original column order when returning
+    # Keep original column order when returning (so can be concatenated with other objects later)
     if (keep_original_column_order) {
       
       onco_args[['column_order']] <- 1:ncol(var_list[[1]])
@@ -754,20 +850,29 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            select_variants = NULL, min_vars = 1, 
                            top_anno = NULL, bottom_anno = NULL, 
                            ht_height = NULL, ht_width = NULL, 
+                           heatmap_title = NULL, 
+                           
+                           ht_gap = unit(2, "mm"),
                            lgd_fontsize = 12, 
                            lgd_gridsize = 4,
                            lgd_rows = 3,
                            lgd_gap = unit(2, 'mm'),
                            lgd_pack_gap = unit(2, 'mm'),
-                           column_split = NULL, column_split_order = NULL,
-                           cluster_columns = FALSE, heatmap_title = NULL, 
+                           
+                           column_split = NULL, 
+                           column_split_order = NULL, 
+                           show_column_split_titles = TRUE,
+                           column_title_side = 'top',
+                           column_split_fill_cols = NULL,
+                           gap_border = TRUE,
+                           cluster_columns = FALSE, 
                            
                            fix_order = FALSE, keep_original_column_order = TRUE,
                            
                            all_variants = TRUE, cnvs_only = FALSE, snvs_only = FALSE,
                            
                            cluster_rows = FALSE, row_names_side = 'left', 
-                           show_pct = TRUE, pct_side = 'right',
+                           show_pct = TRUE, pct_side = 'right', row_barplot = TRUE,
                            category_table = NULL, cat_order = NULL,
                            pre = NULL, return_objects = FALSE) {
   
@@ -782,8 +887,8 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
   }
   
   # Process all data into unified lists for oncoprint
-  var_lists <- var_list_pipeline(t(cnvs.dat), t(snvs.dat), 
-                                 meta, min_vars = min_vars, select_samples = select_samples, select_variants = select_variants)
+  var_lists <- var_list_pipeline(t(cnvs.dat), t(snvs.dat), meta, min_vars = min_vars, 
+                                 select_samples = select_samples, select_variants = select_variants)
   var_list.all <- var_lists[[1]]
   var_list.cnvs <- var_lists[[2]]
   var_list.snvs <- var_lists[[3]]
@@ -809,14 +914,17 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                     
                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                     
-                                    column_split = column_split, column_split_order = column_split_order,
-                                    
+                                    column_split = column_split, column_split_order = column_split_order, 
+                                    show_column_split_titles = show_column_split_titles, gap_border = gap_border,
+                                    column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
                                     
                                     
                                     keep_original_column_order = keep_original_column_order,
                                     category_table = category_table, cat_order = cat_order,
                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
+                                    row_barplot = row_barplot,
                                     
+                                    ht_gap = ht_gap,
                                     ht_height = ht_height, ht_width = ht_width) 
       
     } 
@@ -847,12 +955,15 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
-                                     column_split = column_split, column_split_order = column_split_order,
-                                     
+                                     column_split = column_split, column_split_order = column_split_order, 
+                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
+                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
                                      
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
                                      show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
+                                     row_barplot = row_barplot,
+                                     ht_gap = ht_gap,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     
@@ -881,12 +992,15 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
-                                     column_split = column_split, column_split_order = column_split_order,
-                                     
+                                     column_split = column_split, column_split_order = column_split_order, 
+                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
+                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
                                      
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
                                      show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
+                                     row_barplot = row_barplot,
+                                     ht_gap = ht_gap,
                                      ht_height = ht_height, ht_width = ht_width) 
     } 
     

@@ -517,9 +517,10 @@ calc_ht_size = function(ht, unit = "inch") {
 }
 
 # TODO: Rename function; also create separate parameter for legend instead of passing list
-save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NULL, 
+save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), res = NULL, 
                               pointsize = 12, lgd_direction = 'horizontal', 
-                              max_width = NULL, add_anno_title = NULL, add_width = 0, 
+                              max_width = NULL, add_anno_title = NULL, 
+                              add_width = 0, extend_w = 1.5, res_factor = 2,
                               add_height = 0, lgd_gap = unit(2, 'mm'),
                               mark_samples = NULL, mat = NULL, order_columns = NULL,
                               col_dend = NULL, box_col = NULL, box_width = NULL) {
@@ -544,9 +545,9 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"),  res = NUL
   try(dev.off(), silent = TRUE)
   
   # Set width, height, and resolution
-  w <- wh[1] + 1.5
+  w <- wh[1] + extend_w
   h <- wh[2]
-  if (is.null(res)) {res <- (w*h)*2}
+  if (is.null(res)) {res <- (w*h)*res_factor}
   
   # Extend width and height if needed
   w <- w + add_width
