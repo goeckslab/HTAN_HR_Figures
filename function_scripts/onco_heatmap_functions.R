@@ -60,7 +60,7 @@ alter_fun = list(
               gp = gpar(fill = variant_cols["Frameshift Insertion"], col = NA))
   }, 
   "In Frame Deletion" = function (x, y, w, h) {
-    grid.rect(x, y, w - unit(size.cell, "pt"), h - unit(size.cell,  "pt"), 
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["In Frame Deletion"], col = NA))
   }, 
   "In Frame Insertion" = function (x, y, w, h) {
@@ -72,7 +72,7 @@ alter_fun = list(
               gp = gpar(fill = variant_cols["In Frame Indel"], col = NA))
   }, 
   "Nonsense Insertion" = function (x, y, w, h) {
-    grid.rect(x, y, w - unit(size.cell, "pt"), h - unit(size.cell,  "pt"), 
+    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["Nonsense Insertion"], col = NA))
   }, 
   "Intron Substitution" = function (x, y, w, h) {
@@ -455,11 +455,14 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, min_vars = 1,
 # Function for gathering all components of oncoprint and setting oncoprint parameters before drawing
 build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, heatmap_title = '', 
                             
-                            top_anno = NULL, bottom_anno = NULL, 
+                            top_anno = NULL, 
+                            bottom_anno = NULL, 
+                            
                             cluster_columns = FALSE, 
                             column_order = NULL, 
                             fix_order = FALSE, 
                             keep_original_column_order = TRUE, 
+                            column_barplot = TRUE,
                             
                             column_split = NULL, 
                             column_split_order = NULL,
@@ -635,6 +638,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
           
         } else {
           
+          # Alt black and white
           #column_split_fill_cols <- rep(c('black', 'white'), length.out = length(column_title))
           column_split_fill_cols <- column_split_fill_cols[column_title]
           column_split_border <- TRUE
@@ -653,81 +657,80 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
       
     }
     
+    ######## COLUMN ORDERING, SPLITTING, AND CLUSTERING ##########
     
-    # So barplots aren't automatically created
-    if (is.null(top_anno[[1]])) {
+    # SET COLUMN ORDERING
+    if (fix_order | cluster_columns) {
       
-      faux_height <- unit(.000001, "mm")
+      if (is.null(select_samples)) {select_samples <- colnames(biMat)}
+      col_order <- select_samples
       
     } else {
       
-      faux_height <- unit(1, "mm")
-      
-    }
-    
-    # So column barplot isn't created automatically by oncoPrint function
-    faux_top_anno <- HeatmapAnnotation(foo = anno_empty(border = FALSE, height = faux_height))
-    
-    # Create dendrogram objects if clustering is specified and add to argument list
-    if (cluster_columns == TRUE) { 
-      
-      # NOTE: HEATMAP SPLITTING CURRENTLY DOES NOT WORK IF CLUSTERING 
-      #         COLUMNS (WOULD NEED TO ALLOW DEFAULT CLUSTERING BY 
-      #         ONCOPRINT WITHOUT MANUAL DENDROGRAM OBJECT)
-      top_anno <- Heatmap(matrix(nrow = 0, ncol = ncol(biMat)), heatmap_width = ht_width, 
-                          #column_split = column_split,
-                          #cluster_columns = cluster_columns
-                          cluster_columns = create_dendrogram(t(biMat))
-      ) %v% top_anno[[1]]
-      
-      col_order <- NULL
-      
-    } else {  
-      
-      # Else create column barplot 
-      top_anno <- onco_column_anno(var_list) %v% top_anno[[1]]
-      
-      # Fix order by select samples list or current 
-      #  column order, else use ME sort
-      if (fix_order) {
+      # If splitting columns by group, ME sort each group 
+      #  independently while keeping row order fixed
+      if (!is.null(column_split)) {
         
-        if (is.null(select_samples)) {select_samples <- colnames(biMat)}
-        col_order <- select_samples
-        
-      }  else {
-        
-        # If splitting columns by group, sort independently by each keeping row order fixes
-        if (!is.null(column_split)) {
+        col_order <- c()
+        column_groups <- unique(column_split)
+        for (cg in sort(column_groups)) {
           
-          col_order <- c()
-          column_groups <- unique(column_split)
-          for (cg in sort(column_groups)) {
-            
-            biMat.cg <- biMat[,column_split == cg]
-            cg.order <- colnames(biMat.cg)[meSort(biMat.cg, 
-                                                  #row_order = NULL
-                                                  row_order = order_rows
-                                                  )]
-            col_order <- c(col_order, cg.order)
-            
-          }
-          
-        } else {
-          
-          # Order columns using mutually exclusive sort
-          col_order <- colnames(biMat)[meSort(biMat)]
+          biMat.cg <- biMat[,column_split == cg]
+          cg.order <- colnames(biMat.cg)[meSort(biMat.cg, 
+                                                #row_order = NULL
+                                                row_order = order_rows
+                                                )]
+          col_order <- c(col_order, cg.order)
           
         }
+        
+      } else {
+        
+        # Order columns using mutually exclusive sort
+        col_order <- colnames(biMat)[meSort(biMat)]
         
       }
       
     }
     
-    # TEST
-    #col_order <- NULL
-    #row_order <- NULL
+    # Build empty top heatmap object for ordering, clustering, and splitting
+    top_anno.pre <- Heatmap(biMat, 
+                            col = c('white', 'white'),
+                            show_heatmap_legend = FALSE,
+                            show_row_names = FALSE,
+                            cluster_rows = FALSE,
+                            height = unit(0, 'in'),
+                            heatmap_width = ht_width, 
+                            column_order = col_order,
+                            column_split = column_split,
+                            column_title = column_title,
+                            column_title_gp = column_title_gp,
+                            column_title_side = column_title_side,
+                            column_gap = column_gap,
+                            show_parent_dend_line = FALSE,
+                            cluster_columns = cluster_columns) 
     
-
+    # Make column barplot annotation
+    if (column_barplot) {
+      
+      top_anno.bar <- onco_column_anno(var_list)  
+      
+    } else {
+      
+      top_anno.bar <- NULL
+      
+    }
+    
+    
+    # Stack annotations
+    # TODO: Make option for putting split titles below barplot
+    if (column_title_side == 'top') {
+      top_anno.final <- top_anno.pre %v% top_anno.bar %v% top_anno[[1]]
+    } else {
+      top_anno.final <- top_anno.bar %v% top_anno[[1]] %v% top_anno.pre
+    }
+    
+ 
     ############### END COLUMN PARAMETERS ####################
     
  
@@ -752,6 +755,9 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
       
     }
     
+    # So column barplot isn't created automatically by oncoPrint function
+    faux_top_anno <- HeatmapAnnotation(foo = anno_empty(border = FALSE, height = unit(.000001, "mm")))
+    
     # Create initial set of arguments for oncoPrint
     onco_args <- list(mat = var_list, 
                       alter_fun = alter_fun, 
@@ -759,20 +765,14 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                       remove_empty_columns = FALSE, 
                       remove_empty_rows = FALSE, 
                       show_column_names = FALSE,
+                      column_names_side = 'bottom',
                       
-                      column_order = col_order,
-                      column_split = column_split,
-                      column_title = column_title,
-                      column_title_gp = column_title_gp,
-                      column_title_side = column_title_side,
-                      column_gap = column_gap,
                       border = ht_border,
                       
                       top_annotation = faux_top_anno, 
                       right_annotation = right_anno,
                       
                       row_order = order_rows,
-                      #row_order = NULL,
                       cluster_rows = cluster_rows,
                       
                       row_split = split_rows, 
@@ -781,7 +781,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                       show_pct = show_pct,
                       pct_side = pct_side,
                       row_names_side = row_names_side,
-                      column_names_side = 'bottom',
+                      
                       height = ht_height,
                       width = ht_width,
                       col = variant_cols)
@@ -800,7 +800,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     oncoHT <- rlang::invoke(oncoPrint, .args = onco_args)
     
     # Append top/bottom annotations 
-    ht <- top_anno %v% oncoHT %v% bottom_anno[[1]]
+    ht <- top_anno.final %v% oncoHT %v% bottom_anno[[1]]
     
     # TODO: Merge draw_oncoprint and save_htan_heatmap
     #        remove hardcode gaps and create parameter
@@ -859,6 +859,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            lgd_gap = unit(2, 'mm'),
                            lgd_pack_gap = unit(2, 'mm'),
                            
+                           column_barplot = TRUE,
                            column_split = NULL, 
                            column_split_order = NULL, 
                            show_column_split_titles = TRUE,
@@ -914,6 +915,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                     
                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                     
+                                    column_barplot = column_barplot,
                                     column_split = column_split, column_split_order = column_split_order, 
                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
@@ -955,6 +957,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
+                                     column_barplot = column_barplot,
                                      column_split = column_split, column_split_order = column_split_order, 
                                      show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                      column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
@@ -992,6 +995,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      
                                      fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
                                      
+                                     column_barplot = column_barplot,
                                      column_split = column_split, column_split_order = column_split_order, 
                                      show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                      column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
