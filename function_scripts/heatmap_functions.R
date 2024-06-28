@@ -10,6 +10,7 @@ library(ComplexHeatmap)
 library(circlize)
 library(tidyr)
 library(dplyr)
+library(yarrr)
 
 
 # Annotation colors
@@ -21,14 +22,17 @@ colors.treatment <- c("Abemaciclib" = "#EE0011FF",
                       "Tamoxifen" = "maroon", 
                       "Post-Abemaciclib" = "#FFC6C7FF", 
                       "Post-Palbociclib" = "#B7CBFFFF", 
+                      "Post-Ribociclib" = "#87EF9AFF",
                       "Post-Everolimus" = "#EBF09C", 
                       "Post-Fulvestrant" = "#FFE7D4", 
                       "Post-Letrozole" = "#8EFFBA", 
                       "Post-Tamoxifen" = "#FFD3E5",
                       'Pre-Palbociclib' = 'white',
                       'Pre-Abemaciclib' = 'white',
+                      'Pre-Ribociclib' = 'white',
                       'Pre-Fulvestrant' = 'white',
-                      'Pre-Letrozole' = 'white')
+                      'Pre-Letrozole' = 'white',
+                      'Pre-Tamoxifen' = 'white')
                       
 colors.response <- c("Responder" = "#11776CFF", 
                      "Non-responder" = "#94220EFF")  
@@ -77,10 +81,24 @@ isDark <- function(colr) {
   
 }
 
+# Function to assign colors to vector of items using yarrr piratepal()
+set_colors <- function(x, col_name){
+  
+  my_colors <- setNames(piratepal(palette = col_name, length.out = length(unique(x))),unique(x))
+  return(my_colors[sort(names(my_colors))])
+  
+}
+
 # Function for building heatmap annotation legend objects
 make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
                                  treatment_title = ' ', strip_names = TRUE, rm_duplicate_pair = TRUE,
                                  lgd_fontsize = 12, lgd_gridsize = 4) {
+  
+  if (is.null(select_samples)) {
+    
+    select_samples <- meta %>% pull(Sample)
+    
+  }
   
   # All color schemes subsetted down to select patients
   if (!is.null(select_samples)) {
@@ -187,8 +205,12 @@ update_annotations <- function(meta, annotation_objects) {
 }
 
 # Function for creating barplot column annotations for heatmaps
+# TODO: Update axis parameters
 make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
-                                    labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25)) {
+                                    labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25),
+                                    lSize = 0.5) {
+  
+  meta[,anno] <- as.numeric(meta[,anno])
   
   # Compute axis parameters if not provided
   if (is.null(labs) | is.null(ylim)) {
@@ -198,7 +220,7 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
     
     if (is.null(labs)) {
       
-      labs <- seq(m.in,m.ax,0.5)
+      labs <- seq(m.in,m.ax,lSize)
       
     }
     
@@ -212,6 +234,7 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
   
   
   # Create barplot anotation
+  # TODO: Recode this to make generalizable
   if (anno == 'g1Score') {
     
     bar_anno <- HeatmapAnnotation('G1 Arrest Score' = anno_barplot(meta[,anno],
@@ -239,7 +262,13 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
     
   } else {
     
-    bar_anno <- NULL
+    bar_anno <- HeatmapAnnotation(ha = anno_barplot(meta[,anno],
+                                                    height = anno_height,
+                                                    axis_param = list(at = labs,
+                                                                      labels = labs),
+                                                    ylim = ylim))
+    
+    names(bar_anno) <- anno
     
   }
   
@@ -279,9 +308,13 @@ make_heatmap_columnIDs <- function(meta) {
 make_heatmap_annotations <- function(meta) {
   
   # Treatment legend that also indicates on-progression biopsies
-  onProg.idx <- rep(NA, ncol(meta))
-  onProg.idx[which(meta$ProgressionStage == 'OnProgression')] <- 8
+  # New approach to avoid splitting bug
+  onProg.idx <- rep(8, nrow(meta))
+  #onProg.idx[which(meta$ProgressionStage == 'OnProgression')] <- 8
+  onProg.col <- colors.treatment[as.character(meta$Treatment)]
+  onProg.col[which(meta$ProgressionStage == 'OnProgression')] <- 'black'
   onProgAnno <- HeatmapAnnotation('CDK4/6i' = anno_simple(meta$CDKi, pch = onProg.idx, 
+                                                          pt_gp = gpar(col = onProg.col),
                                                           col = colors.treatment, border = TRUE), 
                                   show_legend = FALSE, border = TRUE)
   
@@ -381,6 +414,224 @@ format_cats <- function(categories) {
   
 }
 
+
+# Function to create heatmap annotation based on results of cutree 
+#   Currently only set up for column clustering
+make_cutree_anno <- function(meta, 
+                             mat = NULL, 
+                             ct = NULL, 
+                             compute_change = FALSE,
+                             assign_to_pair = TRUE,
+                             select_features = NULL,
+                             select_samples = NULL,
+                             dist_func = 'euclidean', 
+                             clust_type = 'complete',
+                             cluster_columns = TRUE,
+                             cluster_name = 'Cluster',
+                             cluster_colors = NULL,
+                             cluster_values = c('High', 'Low'),
+                             pirate_pallete = 'southpark',
+                             lgd_rows = 2,
+                             lgd_fontsize = 12, 
+                             lgd_gridsize = 4,
+                             k = 2) {
+  
+  # Select samples
+  if (is.null(select_samples)) {
+    
+    select_samples <- colnames(mat)
+    
+  }
+  
+  # Select features
+  if (is.null(select_features)) {
+    
+    select_features <- rownames(mat)
+    
+  }
+  
+  # Compute delta between paired samples
+  if (compute_change) {
+    
+    # Subset matrix to select samples
+    mat <- mat[,select_samples,drop=FALSE]
+    
+    # Compute change
+    mat.change <- compute_paired_change(mat, meta)
+    
+    # Update sample list to 2nd of all sample pairs
+    select_samples <- select_samples[select_samples %in% colnames(mat.change)]
+    
+    # Update matrix for heatmap
+    mat <- mat.change[rownames(mat),select_samples,drop=FALSE]
+    
+  } else {
+    
+    # Subset matrix to select samples
+    mat <- mat[,select_samples,drop=FALSE]
+    
+  }
+  
+  # Run clustering and cut tree if no clustering assignment already provided
+  if (is.null(ct)) {
+    
+    ct <- cut_dendro(mat, 
+                     select_features = select_features, 
+                     select_samples = select_samples,
+                     dist_func = dist_func, 
+                     clust_type = clust_type,
+                     cluster_columns = cluster_columns,
+                     k = k)
+    
+  }
+  
+  
+  # Merge clustering assignments with meta table to build annotation
+  meta.rownames <- rownames(meta)
+  
+  # Set name of cluster annotation for meta table
+  ct <- ct %>%
+    as.matrix() %>%
+    melt() %>%
+    select(Var1, value) %>%
+    setNames(c('Sample', cluster_name)) 
+  
+  # Swap cluster assignment names
+  if (!is.null(cluster_values) & length(cluster_values) == k) {
+    
+    # If using high/low scheme, assign names by cluster mean
+    if (k == 2 & 'High' %in% cluster_values & 'Low' %in% cluster_values) {
+      
+      ct <- mat %>%
+        as.matrix() %>%
+        melt() %>%
+        setNames(c('Feature', 'Sample', 'Value')) %>%
+        filter(Feature %in% select_features) %>%
+        left_join(ct) %>%
+        group_by(.data[[cluster_name]]) %>%
+        mutate(Mean = mean(Value)) %>%
+        ungroup() %>%
+        mutate(High = max(Mean)) %>%
+        select(Sample, .data[[cluster_name]], Mean, High) %>%
+        distinct() %>%
+        mutate(!!cluster_name := case_when(Mean == High ~ 'High',
+                                           TRUE ~ 'Low')) %>%
+        select(Sample, .data[[cluster_name]]) %>%
+        distinct()
+      
+    } else {
+      
+      names(cluster_values) <- 1:k
+      
+      ct <- ct %>%
+        mutate(!!cluster_name := cluster_values[.data[[cluster_name]]])
+      
+    }
+    
+  }
+  
+  # Remove from meta if already present from previous run
+  if (cluster_name %in% colnames(meta)) {
+    
+    meta <- meta %>% select(-c(cluster_name))
+    
+  }
+  
+  # Merge with meta table  
+  meta <- ct %>%
+    right_join(meta) %>%
+    data.frame(check.names = FALSE)
+  rownames(meta) <- meta$Sample
+  meta <- meta[meta.rownames,]
+  
+  
+  # Assign cluster assignments to NA values in meta table when NA comes 
+  #   from first of two samples when computing delta between pairs
+  if (compute_change & assign_to_pair) {
+    
+    meta <- meta %>%
+      group_by(Patient) %>%
+      mutate(!!cluster_name := case_when(is.na(.data[[cluster_name]]) & !is.na(lead(.data[[cluster_name]])) ~ lead(.data[[cluster_name]]),
+                                         TRUE ~ .data[[cluster_name]])) %>%
+      ungroup() %>%
+      data.frame(check.names = FALSE)
+    rownames(meta) <- meta$Sample
+    meta <- meta[meta.rownames,]
+    
+  }
+  
+  
+  print(cluster_colors)
+  
+  # Set annotation colors
+  if (is.null(cluster_colors)) {
+    
+    cluster_colors <- set_colors(meta[,cluster_name], pirate_pallete)
+    
+  }
+  
+
+  
+  # Build heatmap annotation
+  ctAnno = HeatmapAnnotation(Cluster = meta[,cluster_name], 
+                             show_legend = FALSE, 
+                             na_col = 'grey',
+                             col = list(Cluster = cluster_colors), 
+                             border = TRUE)
+  names(ctAnno) <- cluster_name
+  
+  # Build legend
+  ctLgd <- Legend(title = cluster_name, labels = names(cluster_colors), nrow = lgd_rows,
+                  legend_gp = gpar(fill = cluster_colors),  labels_gp = gpar(fontsize = lgd_fontsize), 
+                  grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'), 
+                  title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  
+  return(list(ctAnno = ctAnno,
+              ctLgd = ctLgd,
+              meta = meta))
+  
+}
+
+
+# Convienence function to add new heatmap column annotation without recreating list
+# TODO: Add option to add new annotation at specified position
+add_ht_annotation <- function(anno, anno_list, pos = 'last', swap = TRUE) {
+  
+  # Get name of new annotation
+  anno.name <- names(anno)
+  
+  # Separate annotations and legends
+  annos <- anno_list[[1]]
+  lgds <- anno_list[[2]]
+  
+  # Get names of current annotation lsit
+  annos.names <- names(annos)
+  
+  # Get positions in annotation list
+  idx <- c(1:length(annos))
+  names(idx) <- annos.names
+  
+  # Swap if already present
+  if (swap & (anno.name %in% annos.names)) {
+    
+    # Get current position
+    to_swap <- which(names(idx) == anno.name)
+    
+    # Remove from current list
+    annos <- annos[-c(to_swap)]
+    
+  }
+  
+  # Append new annotation to list
+  annos <- annos %v% anno
+  
+  return(list(annos, lgds))
+  
+}
+
+
+
 # Function that organizes list of legends in a set order for plotting with heatmaps
 make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
   
@@ -452,6 +703,8 @@ make_legend_list <- function(row_lgd_list, top_lgd_list, ht_lgd, btm_lgd_list) {
   return(lgd_list)
   
 }
+
+
 
 
 # Function to create box around column of samples to highlight in heatmap
@@ -723,8 +976,11 @@ make_heatmap <- function(mat,
                          res = NULL, rect_gp = gpar(col = NA), 
                          
                          top_anno = NULL, btm_anno = NULL,
+                         
+                         top_anno.ht = NULL,
+                         
                          show_column_annotation_legend = TRUE,
-                         cluster_columns = FALSE, 
+                         cluster_columns = TRUE, 
                          split_column_by_pheno = NULL, 
                          column_split_order = NULL,
                          split_column_by_dendrogram = NULL,
@@ -742,6 +998,9 @@ make_heatmap <- function(mat,
                          row_title_rot = 0,
                          
                          bar_anno = NULL,
+                         bar_labs = seq(-0.5, 1, .5), 
+                         bar_ylim = c(-.8, 1.25),
+                         
                          
                          mark_samples = NULL,
                          box_col = 'white', 
@@ -845,6 +1104,7 @@ make_heatmap <- function(mat,
   
   }
   
+ 
   # Set heatmap height based on cell height if provided
   if (!is.null(cell_height)) {heatmap_height <- cell_height*nrow(mat)}
   
@@ -863,6 +1123,9 @@ make_heatmap <- function(mat,
   
   # Compute delta between paired samples
   if (compute_change) {
+    
+    # Subset matrix to select samples
+    mat <- mat[,select_samples,drop=FALSE]
     
     # Compute change
     mat.change <- compute_paired_change(mat, meta)
@@ -885,11 +1148,13 @@ make_heatmap <- function(mat,
     
     if (!is.null(top_anno)) {
       
-      top_anno[[1]] <- make_barplot_annotation(meta, bar_anno) %v% top_anno[[1]]
+      top_anno[[1]] <- make_barplot_annotation(meta, bar_anno,
+                                               labs = bar_labs, ylim = bar_ylim) %v% top_anno[[1]]
       
     } else {
       
-      top_anno <- list(make_barplot_annotation(meta, bar_anno), NULL)
+      top_anno <- list(make_barplot_annotation(meta, bar_anno,
+                                               labs = bar_labs, ylim = bar_ylim), NULL)
       
     }
     
@@ -900,10 +1165,31 @@ make_heatmap <- function(mat,
   if (!is.null(top_anno)) {top_anno <- update_annotations(meta[select_samples,], top_anno)}
   if (!is.null(btm_anno)) {btm_anno <- update_annotations(meta[select_samples,], btm_anno)}
   
+  
+  # Subset annotation for direct to heatmp
+  # TODO: may need to update to include legend as 2nd item in list
+  #        (currently just a single anno object)
+  if (!is.null(top_anno.ht)) {
+    
+    idx <- meta[select_samples,'AnnoIndex']
+    top_anno.ht <- top_anno.ht[idx,]
+    
+    # Use heatmap function to perform clustering 
+    # instead of creating dendrogram ahead of time
+    cluster_columns.ht <- cluster_columns
+    
+  } else {
+    
+    cluster_columns.ht <- FALSE
+    
+  }
+  
+  
   # Split columns by specified phenotype
   if (!is.null(split_column_by_pheno)) {
     
     col_split <- meta[select_samples,split_column_by_pheno]
+    #cluster_columns.ht <- cluster_columns
     cluster_columns <- FALSE
     
     # Get order of column groups
@@ -926,9 +1212,15 @@ make_heatmap <- function(mat,
   if (!is.null(split_column_by_dendrogram)) {
     
     col_split <- split_column_by_dendrogram
-    cluster_columns <- TRUE
     column_title <- NULL
-  
+    cluster_columns <- TRUE
+    if (!is.null(top_anno.ht)) {
+      
+      cluster_columns.ht <- TRUE
+      
+    }
+    
+ 
   } else {
     
     col_split <- col_split
@@ -952,7 +1244,19 @@ make_heatmap <- function(mat,
   }
   
   
+  # Update parameters when passing top annotation directly into heamtap function
+  col_split.ht <- NULL
+  if (!is.null(top_anno.ht)) {
+    
+    if (!is.null(col_split)) {
+      
+      col_split.ht <- col_split
+      
+    } 
+
+  } 
   
+
   # Create top heatmap object to control column clustering and splitting
   mat.top <- matrix(0, nrow = 0, ncol = ncol(mat))
   colnames(mat.top) <- colnames(mat)
@@ -962,7 +1266,6 @@ make_heatmap <- function(mat,
                     column_split = col_split,
                     column_title = column_title,
                     heatmap_width = heatmap_width)
-  
   
   
   # ~~~~~~~~~~~~~~ BUILD HEATMAP OBJECTS ~~~~~~~~~~~~~~~~ #
@@ -987,12 +1290,42 @@ make_heatmap <- function(mat,
                 name = 'heat',
                 show_row_names = show_row_names,
                 left_annotation = rowAnno, rect_gp = rect_gp,
-                row_split = row_split, row_title_rot = row_title_rot,
-                cluster_rows = cluster_rows, cluster_columns = FALSE, 
+                row_split = row_split, 
+                row_title_rot = row_title_rot,
+                cluster_rows = cluster_rows, 
+                
+                # TEST
+                #cluster_columns = FALSE, 
+                #cluster_columns = TRUE,
+                #column_split = col_split,
+                #column_title = NULL,
+                #top_annotation = top_anno.ht,
+                
+                cluster_columns = cluster_columns.ht,
+                column_split = col_split.ht,
+                column_title = NULL,
+                top_annotation = top_anno.ht,
+                
+                
                 width = heatmap_width, height = heatmap_height)
   
   # Stack heatmap objects
-  ht <- ht.top %v% top_anno[[1]] %v% ht %v% btm_anno[[1]]
+  if (is.null(top_anno.ht)) {
+  
+  ht <- ht.top %v% 
+    top_anno[[1]] %v% 
+    ht %v% 
+    btm_anno[[1]]
+  
+  } else {
+    
+    ht <- ht %v% 
+      btm_anno[[1]]
+    
+  }
+  
+  
+ 
   
   # ~~~~~~~~~~~~~~ BUILD LEGEND OBJECTS ~~~~~~~~~~~~~~~~ #
   

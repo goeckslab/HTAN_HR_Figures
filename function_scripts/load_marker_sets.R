@@ -30,7 +30,7 @@ make_category_table <-  function(feature_sets, feature_name = 'Gene') {
 #
 ########################################
 
-dna_cats.htan <- list("Cell Cycle" = c("AURKA", 
+dna_cats.main <- list("Cell Cycle" = c("AURKA", 
                                        "BRD4", 
                                        "CCND1", 
                                        "CDKN1B",  
@@ -61,7 +61,7 @@ dna_cats.htan <- list("Cell Cycle" = c("AURKA",
                                                "CHEK2"))
 
 # Make into table and return
-dna_cats.htan <- make_category_table(dna_cats.htan, 'Gene')
+dna_cats.main <- make_category_table(dna_cats.main, 'Gene')
 
 
 ########################################
@@ -70,7 +70,7 @@ dna_cats.htan <- make_category_table(dna_cats.htan, 'Gene')
 #
 ########################################
 
-gene_cats.htan <- list("G0" = c("CDKN1A", 
+gene_cats.main <- list("G0" = c("CDKN1A", 
                                 "CDKN1B", 
                                 "RB1"), 
                        "G1" = c("CCND1", 
@@ -151,7 +151,7 @@ gene_cats.htan <- list("G0" = c("CDKN1A",
 
 
 # Make into table and return
-gene_cats.htan <- make_category_table(gene_cats.htan, 'Gene') %>%
+gene_cats.main <- make_category_table(gene_cats.main, 'Gene') %>%
   arrange(Category, Gene)
 
 
@@ -163,8 +163,10 @@ gene_cats.htan <- make_category_table(gene_cats.htan, 'Gene') %>%
 #######################################################
 
 
-gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS", 
+gsva_cats.main <- list('Cell Cycle' = c("E2F_TARGETS", 
                                       "MYC_TARGETS_V1", 
+                                      "MYC_TARGETS_V2",
+                                      "MITOTIC_SPINDLE",
                                       "KEGG_DNA_REPLICATION",  
                                       "REACTOME_S_PHASE", 
                                       "REACTOME_CELL_CYCLE"),
@@ -196,9 +198,10 @@ gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS",
                                             "COAGULATION", 
                                             "COMPLEMENT", 
                                             "INFLAMMATORY_RESPONSE", 
+                                            #"REACTOME_PD_1_SIGNALING",
                                             "INTERFERON_ALPHA_RESPONSE", 
-                                            "INTERFERON_GAMMA_RESPONSE",
-                                            "REACTOME_PD_1_SIGNALING"),
+                                            "INTERFERON_GAMMA_RESPONSE"
+                                            ),
                      'Immune Cell Activity' = c("Activated CD8 T cell", 
                                                 "B cells", 
                                                 "Cytotoxic cells", 
@@ -216,7 +219,7 @@ gsva_cats.htan <- list('Cell Cycle' = c("E2F_TARGETS",
                                                 "Tem cells", 
                                                 "Tfh cells"))
 
-gsva_cats.htan <- make_category_table(gsva_cats.htan, 'Pathway')
+gsva_cats.main <- make_category_table(gsva_cats.main, 'Pathway')
 
 
 ###############################################################
@@ -227,7 +230,7 @@ gsva_cats.htan <- make_category_table(gsva_cats.htan, 'Pathway')
 
 
 # Merged categories
-gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION", 
+gsva_cats.extend <- list("Cellular Component" = c("APICAL_JUNCTION", 
                                                 "APICAL_SURFACE", 
                                                 "PEROXISOME"), 
                        "Development" = c("ADIPOGENESIS", 
@@ -260,7 +263,7 @@ gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION",
                                               "INFLAMMATORY_RESPONSE", 
                                               "INTERFERON_ALPHA_RESPONSE", 
                                               "INTERFERON_GAMMA_RESPONSE", 
-                                              "REACTOME_PD_1_SIGNALING",
+                                              #"REACTOME_PD_1_SIGNALING",
                                               "Antigen Presentation", 
                                               "Chemokine",
                                               'T Cell Inflamed GEP'), 
@@ -290,6 +293,7 @@ gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION",
                                            "KEGG_DNA_REPLICATION", 
                                            "REACTOME_S_PHASE", 
                                            "REACTOME_REPLICATION_STRESS", 
+                                           "REACTOME_ACTIVATION_OF_ATR_IN_RESPONSE_TO_REPLICATION_STRESS",
                                            "REACTOME_CELL_CYCLE"), 
                        "Receptor Signaling" = c("ANDROGEN_RESPONSE", 
                                                 "ESTROGEN_RESPONSE_EARLY", 
@@ -304,7 +308,118 @@ gsva_cats.merged <- list("Cellular Component" = c("APICAL_JUNCTION",
                                        "TNFA_SIGNALING_VIA_NFKB", 
                                        "WNT_BETA_CATENIN_SIGNALING"))
 
-gsva_cats.merged <- make_category_table(gsva_cats.merged, 'Pathway')
+gsva_cats.extend <- make_category_table(gsva_cats.extend, 'Pathway')
+
+# Mix of categories
+gsva_cats.plus <- rbind(gsva_cats.main,
+                        gsva_cats.extend %>%
+                          filter(!Pathway %in% gsva_cats.main$Pathway))
+
+# Add Reactome adapative immune sets
+#reactome_cats <- list('Adaptive Immune' = c("Antigen Presentation: Folding, assembly and peptide loading of class I MHC", 
+#                                            "Antigen activates B Cell Receptor (BCR) leading to generation of second messengers", 
+#                                            "Antigen processing-Cross presentation", "Antigen processing: Ubiquitination & Proteasome degradation", 
+#                                            "CD22 mediated BCR regulation", "CD28 co-stimulation", "CTLA4 inhibitory signaling", 
+#                                            "Downstream TCR signaling", "Downstream signaling events of B Cell Receptor (BCR)", 
+#                                            "Generation of second messenger molecules", "PD-1 signaling", 
+#                                            "Phosphorylation of CD3 and TCR zeta chains", "Translocation of ZAP-70 to Immunological synapse"
+#))
+
+
+
+
+add_reactome <- FALSE
+add_reactome <- TRUE
+if (add_reactome) {
+reactome_cats <- list('Adaptive Immune' = c("REACTOME_TCR_SIGNALING",
+                                            "REACTOME_CD28_CO_STIMULATION", 
+                                            "REACTOME_CTLA4_INHIBITORY_SIGNALING", 
+                                            "REACTOME_PD_1_SIGNALING", 
+                                            #"REACTOME_ANTIGEN_PROCESSING_CROSS_PRESENTATION", 
+                                            #"REACTOME_ANTIGEN_PRESENTATION_FOLDING_ASSEMBLY_AND_PEPTIDE_LOADING_OF_CLASS_I_MHC", 
+                                            "REACTOME_MHC_CLASS_II_ANTIGEN_PRESENTATION"),
+                      
+                      'Cytokine Signaling' = c("REACTOME_INTERLEUKIN_7_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_1_FAMILY_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_12_FAMILY_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_17_SIGNALING", 
+                                               "REACTOME_OTHER_INTERLEUKIN_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_2_FAMILY_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_3_INTERLEUKIN_5_AND_GM_CSF_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_6_FAMILY_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_10_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_4_AND_INTERLEUKIN_13_SIGNALING", 
+                                               "REACTOME_INTERLEUKIN_20_FAMILY_SIGNALING", 
+                                               "REACTOME_ANTIVIRAL_MECHANISM_BY_IFN_STIMULATED_GENES", 
+                                               "REACTOME_INTERFERON_GAMMA_SIGNALING", 
+                                               "REACTOME_INTERFERON_ALPHA_BETA_SIGNALING", 
+                                               #"REACTOME_STAT5_ACTIVATION", 
+                                               "REACTOME_NEGATIVE_REGULATION_OF_FLT3", 
+                                               "REACTOME_FLT3_SIGNALING_THROUGH_SRC_FAMILY_KINASES"
+                      )
+                      )
+
+
+split_reactome_cats <- FALSE
+split_reactome_cats <- TRUE
+
+if (split_reactome_cats) {
+reactome_cats <- list('Adaptive Immune' = reactome_cats[['Adaptive Immune']],
+                      
+                      'Interferon Signaling' = c("REACTOME_ANTIVIRAL_MECHANISM_BY_IFN_STIMULATED_GENES", 
+                                                 "REACTOME_INTERFERON_GAMMA_SIGNALING", 
+                                                 "REACTOME_INTERFERON_ALPHA_BETA_SIGNALING"),
+                      
+                      'Interleukin Signaling' = c("REACTOME_INTERLEUKIN_7_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_1_FAMILY_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_12_FAMILY_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_17_SIGNALING", 
+                                                  "REACTOME_OTHER_INTERLEUKIN_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_2_FAMILY_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_3_INTERLEUKIN_5_AND_GM_CSF_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_6_FAMILY_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_10_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_4_AND_INTERLEUKIN_13_SIGNALING", 
+                                                  "REACTOME_INTERLEUKIN_20_FAMILY_SIGNALING"),
+                      
+                      'FLT3 Signaling' = c("REACTOME_NEGATIVE_REGULATION_OF_FLT3", 
+                                           "REACTOME_FLT3_SIGNALING_THROUGH_SRC_FAMILY_KINASES")
+                      
+                      )
+}
+
+
+# Just adaptive immune
+reactome_cats <- list('Adaptive Immune' = c("REACTOME_TCR_SIGNALING",
+                                            "REACTOME_CD28_CO_STIMULATION", 
+                                            "REACTOME_CTLA4_INHIBITORY_SIGNALING", 
+                                            "REACTOME_PD_1_SIGNALING", 
+                                            #"REACTOME_ANTIGEN_PROCESSING_CROSS_PRESENTATION", 
+                                            #"REACTOME_ANTIGEN_PRESENTATION_FOLDING_ASSEMBLY_AND_PEPTIDE_LOADING_OF_CLASS_I_MHC", 
+                                            "REACTOME_MHC_CLASS_II_ANTIGEN_PRESENTATION"))
+
+reactome_cats <- make_category_table(reactome_cats, 'Pathway')
+gsva_cats.plus <- rbind(gsva_cats.plus, reactome_cats)
+
+}
+
+# Hallmarks 
+hallmarks <- c("ADIPOGENESIS", "ALLOGRAFT_REJECTION", "ANDROGEN_RESPONSE", 
+               "ANGIOGENESIS", "APICAL_JUNCTION", "APICAL_SURFACE", "APOPTOSIS", 
+               "BILE_ACID_METABOLISM", "CHOLESTEROL_HOMEOSTASIS", "COAGULATION", 
+               "COMPLEMENT", "DNA_REPAIR", "E2F_TARGETS", "EPITHELIAL_MESENCHYMAL_TRANSITION", 
+               "ESTROGEN_RESPONSE_EARLY", "ESTROGEN_RESPONSE_LATE", "FATTY_ACID_METABOLISM", 
+               "G2M_CHECKPOINT", "GLYCOLYSIS", "HEDGEHOG_SIGNALING", "HEME_METABOLISM", 
+               "HYPOXIA", "IL2_STAT5_SIGNALING", "IL6_JAK_STAT3_SIGNALING", 
+               "INFLAMMATORY_RESPONSE", "INTERFERON_ALPHA_RESPONSE", "INTERFERON_GAMMA_RESPONSE", 
+               "KRAS_SIGNALING_DN", "KRAS_SIGNALING_UP", "MITOTIC_SPINDLE", 
+               "MTORC1_SIGNALING", "MYC_TARGETS_V1", "MYC_TARGETS_V2", "MYOGENESIS", 
+               "NOTCH_SIGNALING", "OXIDATIVE_PHOSPHORYLATION", "P53_PATHWAY", 
+               "PANCREAS_BETA_CELLS", "PEROXISOME", "PI3K_AKT_MTOR_SIGNALING", 
+               "PROTEIN_SECRETION", "REACTIVE_OXYGEN_SPECIES_PATHWAY", "SPERMATOGENESIS", 
+               "TGF_BETA_SIGNALING", "TNFA_SIGNALING_VIA_NFKB", "UNFOLDED_PROTEIN_RESPONSE", 
+               "UV_RESPONSE_DOWN", "UV_RESPONSE_UP", "WNT_BETA_CATENIN_SIGNALING", 
+               "XENOBIOTIC_METABOLISM")
 
 # Color scheme for row annotations
 gsva_colors <- c("Cellular Component" = "#EC579AFF", 
@@ -325,7 +440,7 @@ gsva_colors <- c("Cellular Component" = "#EC579AFF",
 #
 ###############################################################
 
-ppw_cats.htan <- list('Cell Cycle' = c("Cell_cycle_progression", 
+ppw_cats.main <- list('Cell Cycle' = c("Cell_cycle_progression", 
                                       "G0_G1", 
                                       "G1_S", 
                                       "G2_M"),
@@ -344,4 +459,4 @@ ppw_cats.htan <- list('Cell Cycle' = c("Cell_cycle_progression",
                      'PI3K/AKT/mTOR' = c("PI3K_Akt", 
                                          "TSC_mTOR"))
 
-ppw_cats.htan <- make_category_table(ppw_cats.htan, 'Pathway')
+ppw_cats.main <- make_category_table(ppw_cats.main, 'Pathway')

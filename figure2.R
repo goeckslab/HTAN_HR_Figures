@@ -207,6 +207,8 @@ make_oncoplots(cnvs.htan,
 #
 #################################################################################
 
+# Note: make sure "REACTOME_REPLICATION_STRESS" is named appropriately
+
 # Intrinsic pathways from Mann-Whitney test (p < 0.1)
 gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT", 
                         "KEGG_DNA_REPLICATION", "MTORC1_SIGNALING", 

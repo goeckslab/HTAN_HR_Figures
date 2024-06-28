@@ -469,6 +469,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             column_title = NULL,
                             show_column_split_titles = TRUE,
                             column_split_fill_cols = NULL,
+                            column_split_title_border = NULL,
                             column_title_side = 'top',
                             column_title_gp = gpar(fontsize = 14),
                             column_gap = unit(2.5, "mm"), # library default is unit(1, "mm"),
@@ -634,21 +635,22 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
         if (is.null(column_split_fill_cols)) {
           
           column_split_fill_cols <- 'white'
-          column_split_border <- FALSE
+          if (is.null(column_split_title_border)) {column_split_title_border <- FALSE}
+          
           
         } else {
           
           # Alt black and white
           #column_split_fill_cols <- rep(c('black', 'white'), length.out = length(column_title))
           column_split_fill_cols <- column_split_fill_cols[column_title]
-          column_split_border <- TRUE
+          if (is.null(column_split_title_border)) {column_split_title_border <- TRUE}
           
         }
         
         # Set column split header parameters
         column_title_gp = gpar(fill = column_split_fill_cols,
                                col = sapply(column_split_fill_cols, FUN = isDark),
-                               border = column_split_border)
+                               border = column_split_title_border)
          
       } 
 
@@ -725,9 +727,13 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     # Stack annotations
     # TODO: Make option for putting split titles below barplot
     if (column_title_side == 'top') {
+      
       top_anno.final <- top_anno.pre %v% top_anno.bar %v% top_anno[[1]]
+      
     } else {
+      
       top_anno.final <- top_anno.bar %v% top_anno[[1]] %v% top_anno.pre
+      
     }
     
  
@@ -865,6 +871,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            show_column_split_titles = TRUE,
                            column_title_side = 'top',
                            column_split_fill_cols = NULL,
+                           column_split_title_border = NULL,
                            gap_border = TRUE,
                            cluster_columns = FALSE, 
                            
@@ -919,7 +926,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                     column_split = column_split, column_split_order = column_split_order, 
                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
-                                    
+                                    column_split_title_border = column_split_title_border,
                                     
                                     keep_original_column_order = keep_original_column_order,
                                     category_table = category_table, cat_order = cat_order,
@@ -961,6 +968,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      column_split = column_split, column_split_order = column_split_order, 
                                      show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                      column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
+                                     column_split_title_border = column_split_title_border,
                                      
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
@@ -999,6 +1007,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                                      column_split = column_split, column_split_order = column_split_order, 
                                      show_column_split_titles = show_column_split_titles, gap_border = gap_border,
                                      column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
+                                     column_split_title_border = column_split_title_border,
                                      
                                      keep_original_column_order = keep_original_column_order,
                                      category_table = category_table, cat_order = cat_order,
