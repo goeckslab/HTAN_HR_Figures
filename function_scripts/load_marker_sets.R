@@ -436,6 +436,21 @@ gsva_colors <- c("Cellular Component" = "#EC579AFF",
 
 ###############################################################
 #
+#   PATHWAY LISTS
+#
+###############################################################
+
+
+
+# Immune cell types
+pws.celltypes <- gsva_cats.main %>%
+  filter(Category == 'Immune Cell Activity') %>%
+  pull(Pathway)
+
+
+
+###############################################################
+#
 #   PROTEIN PATHWAY CATEGORIES FOR SUPPLEMENTAL FIGURES
 #
 ###############################################################

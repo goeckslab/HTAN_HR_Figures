@@ -207,23 +207,100 @@ update_annotations <- function(meta, annotation_objects) {
 # Function for creating barplot column annotations for heatmaps
 # TODO: Update axis parameters
 make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
-                                    labs = seq(-0.5, 1, .5), ylim = c(-.8, 1.25),
-                                    lSize = 0.5) {
+                                    #labs = seq(-0.5, 1, .5), 
+                                    #ylim = c(-.8, 1.25),
+                                    #lSize = 0.5, 
+                                    bar_fill = c('cyan', 'black', 'magenta'),
+                                    
+                                    labs = NULL, 
+                                    ylim = NULL,
+                                    lSize = NULL, 
+                                    return_bar_anno = FALSE,
+                                    
+                                    anno_name = NULL) {
   
   meta[,anno] <- as.numeric(meta[,anno])
   
-  # Compute axis parameters if not provided
-  if (is.null(labs) | is.null(ylim)) {
+  # Set barplot colors
+  if (!is.null(bar_fill)) {
     
-    m.ax <- ceiling(max(meta[,anno], na.rm = TRUE)*2) / 2
-    m.in <- min(0, (floor(min(meta[,anno], na.rm = TRUE)*2) / 2))
-    
-    if (is.null(labs)) {
+    # Use if just single color
+    if (length(bar_fill) == 1) {
       
-      labs <- seq(m.in,m.ax,lSize)
+      bar_fill <- bar_fill
+      
+    # Else, make continuous function  
+    } else if (length(bar_fill) != length(meta[,anno])) {
+      
+      bar_fill <- make_heatmap_colors(meta[,anno], htColors = bar_fill, 
+                                      qMin = 0.05, qMax = 0.95)
+      bar_fill <- bar_fill(meta[,anno])
+      
+    # Or assign color to each value  
+    } else {
+    
+    bar_fill <- bar_fill
       
     }
     
+  }
+  
+  # Compute axis parameters if not provided
+  if (is.null(labs) | is.null(ylim) | is.null(lSize)) {
+    
+    # Get min and max values
+    m.ax <- ceiling(max(meta[,anno], na.rm = TRUE)*2) / 2
+    m.in <- min(0, (floor(min(meta[,anno], na.rm = TRUE)*2) / 2))
+    
+    # Set axis step size
+    if (is.null(lSize)) {
+      
+      # Use lims if provided
+      if (!is.null(ylim)) {
+        
+        if (ylim[2] >= 2) {
+          
+          lSize <- 1
+          
+        } else {
+          
+          lSize <- 0.5
+          
+        }
+        
+      } else {
+      
+      # Else use min/max
+      if (m.ax >= 2) {
+        
+        lSize <- 1
+        
+      } else {
+        
+        lSize <- 0.5
+        
+      }
+      
+    }
+    
+    }
+      
+    # Set labels
+    if (is.null(labs)) {
+      
+      if (!is.null(ylim)) {
+        
+        labs <- seq(ylim[1], ylim[2], lSize)
+        
+      } else {
+        
+        labs <- seq(m.in,m.ax,lSize)
+        
+      }
+      
+    }
+    
+    # Set y limits
     if (is.null(ylim)) {
       
       ylim <- c(m.in,m.ax)
@@ -234,45 +311,47 @@ make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'),
   
   
   # Create barplot anotation
-  # TODO: Recode this to make generalizable
-  if (anno == 'g1Score') {
+  if (return_bar_anno) {
     
-    bar_anno <- HeatmapAnnotation('G1 Arrest Score' = anno_barplot(meta[,anno],
-                                                                   height = anno_height,
-                                                                   axis_param = list(at = labs,
-                                                                                     labels = labs),
-                                                                   ylim = ylim))
-
-  } else if (anno == 'CytoChange') {
-    
-    bar_anno <- HeatmapAnnotation('Cytolytic Change' = anno_barplot(meta[,anno],
-                                                                   height = anno_height,
-                                                                   axis_param = list(at = labs,
-                                                                                     labels = labs),
-                                                                   ylim = ylim))
-    
-  # TODO: Add cytolytic activity (no change)  
-  } else if (anno == 'CytolyticActivity') {
-    
-    bar_anno <- HeatmapAnnotation('Cytolytic Activity' = anno_barplot(meta[,anno],
-                                                                      height = anno_height,
-                                                                      axis_param = list(at = labs,
-                                                                                        labels = labs),
-                                                                      ylim = ylim))
+    return(anno_barplot(meta[,anno],
+                        height = anno_height,
+                        axis_param = list(at = labs,
+                                          labels = labs),
+                        gp = gpar(fill = bar_fill),
+                        ylim = ylim))
     
   } else {
+  
+  bar_anno <- HeatmapAnnotation(ha = anno_barplot(meta[,anno],
+                                                  height = anno_height,
+                                                  axis_param = list(at = labs,
+                                                                    labels = labs),
+                                                  gp = gpar(fill = bar_fill),
+                                                  ylim = ylim))
+  
+  
+  
+  
+  default_names <- list('g1Score' = 'G1 Arrest Score',
+                        'CytoChange' = 'Cytolytic Change')
+  
+  if (!is.null(anno_name)) {
     
-    bar_anno <- HeatmapAnnotation(ha = anno_barplot(meta[,anno],
-                                                    height = anno_height,
-                                                    axis_param = list(at = labs,
-                                                                      labels = labs),
-                                                    ylim = ylim))
+    names(bar_anno) <- anno_name
+    
+  } else if (anno %in% names(default_names)) {
+    
+    names(bar_anno) <- default_names[[anno]]
+    
+  } else {
     
     names(bar_anno) <- anno
     
   }
   
   return(bar_anno)
+  
+  }
   
 }
 
@@ -858,7 +937,7 @@ create_dendrogram <- function(mat, dist_func = 'euclidean',
 }
 
 # Function to create color scheme object for heatmap
-make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NULL, maxHt = NULL) {
+make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NULL, maxHt = NULL, qMin = 0.01, qMax = 0.99) {
   
   # Get color scheme and number of intensity points
   if (is.null(htColors)) {
@@ -875,15 +954,15 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
   # Get min/max intesnity limits
   if (is.null(minHt)) {
     
-    minHt <- max(abs(quantile(mat, 0.01, na.rm = TRUE)), 
-                 quantile(mat, 0.99, na.rm = TRUE)) * (-1)
+    minHt <- max(abs(quantile(mat, qMin, na.rm = TRUE)), 
+                 quantile(mat, qMax, na.rm = TRUE)) * (-1)
     
   } 
   
   if (is.null(maxHt)) {
     
-    maxHt <- max(abs(quantile(mat, 0.01, na.rm = TRUE)), 
-                 quantile(mat, 0.99, na.rm = TRUE))
+    maxHt <- max(abs(quantile(mat, qMin, na.rm = TRUE)), 
+                 quantile(mat, qMax, na.rm = TRUE))
     
   }
   
