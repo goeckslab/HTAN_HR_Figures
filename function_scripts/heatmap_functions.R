@@ -67,6 +67,13 @@ colors.gsva <- c("Cellular Component" = "#EC579AFF",
                  "Receptor Signaling" = "#15983DFF", 
                  "Signaling" = "purple")
 
+# Intrinsic/extrinsic luster assignment colors
+colors.intrinsic <- c('High' = "#E6352FFF",
+                      'Low' = "#34A74BFF")
+colors.extrinsic <- c('High' = "#F9B90AFF",
+                      'Low' = "#3D79F3FF")
+
+
 # Function to determine darkness of background color for overlaying black and white text
 isDark <- function(colr) { 
   
@@ -82,7 +89,7 @@ isDark <- function(colr) {
 }
 
 # Function to assign colors to vector of items using yarrr piratepal()
-set_colors <- function(x, col_name){
+set_colors <- function(x, col_name = 'basel'){
   
   my_colors <- setNames(piratepal(palette = col_name, length.out = length(unique(x))),unique(x))
   return(my_colors[sort(names(my_colors))])
@@ -112,6 +119,8 @@ make_heatmap_legends <- function(meta, select_samples = NULL, lgd_rows = 2,
     colors.patient <- colors.patient[names(colors.patient) %in% meta[select_samples, 'Patient']]
     
   }
+  
+  # TODO: Make function for creating generic legend
   
   # Legend for pre-treatment and on-progression with on-progression labeled with asterisk
   opAstrLgd <- Legend(title = 'Treatment', type = 'points', pch = c(NA,8), 
@@ -204,156 +213,7 @@ update_annotations <- function(meta, annotation_objects) {
   
 }
 
-# Function for creating barplot column annotations for heatmaps
-# TODO: Update axis parameters
-make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
-                                    #labs = seq(-0.5, 1, .5), 
-                                    #ylim = c(-.8, 1.25),
-                                    #lSize = 0.5, 
-                                    bar_fill = c('cyan', 'black', 'magenta'),
-                                    
-                                    labs = NULL, 
-                                    ylim = NULL,
-                                    lSize = NULL, 
-                                    return_bar_anno = FALSE,
-                                    
-                                    anno_name = NULL) {
-  
-  meta[,anno] <- as.numeric(meta[,anno])
-  
-  # Set barplot colors
-  if (!is.null(bar_fill)) {
-    
-    # Use if just single color
-    if (length(bar_fill) == 1) {
-      
-      bar_fill <- bar_fill
-      
-    # Else, make continuous function  
-    } else if (length(bar_fill) != length(meta[,anno])) {
-      
-      bar_fill <- make_heatmap_colors(meta[,anno], htColors = bar_fill, 
-                                      qMin = 0.05, qMax = 0.95)
-      bar_fill <- bar_fill(meta[,anno])
-      
-    # Or assign color to each value  
-    } else {
-    
-    bar_fill <- bar_fill
-      
-    }
-    
-  }
-  
-  # Compute axis parameters if not provided
-  if (is.null(labs) | is.null(ylim) | is.null(lSize)) {
-    
-    # Get min and max values
-    m.ax <- ceiling(max(meta[,anno], na.rm = TRUE)*2) / 2
-    m.in <- min(0, (floor(min(meta[,anno], na.rm = TRUE)*2) / 2))
-    
-    # Set axis step size
-    if (is.null(lSize)) {
-      
-      # Use lims if provided
-      if (!is.null(ylim)) {
-        
-        if (ylim[2] >= 2) {
-          
-          lSize <- 1
-          
-        } else {
-          
-          lSize <- 0.5
-          
-        }
-        
-      } else {
-      
-      # Else use min/max
-      if (m.ax >= 2) {
-        
-        lSize <- 1
-        
-      } else {
-        
-        lSize <- 0.5
-        
-      }
-      
-    }
-    
-    }
-      
-    # Set labels
-    if (is.null(labs)) {
-      
-      if (!is.null(ylim)) {
-        
-        labs <- seq(ylim[1], ylim[2], lSize)
-        
-      } else {
-        
-        labs <- seq(m.in,m.ax,lSize)
-        
-      }
-      
-    }
-    
-    # Set y limits
-    if (is.null(ylim)) {
-      
-      ylim <- c(m.in,m.ax)
-      
-    }
-    
-  }
-  
-  
-  # Create barplot anotation
-  if (return_bar_anno) {
-    
-    return(anno_barplot(meta[,anno],
-                        height = anno_height,
-                        axis_param = list(at = labs,
-                                          labels = labs),
-                        gp = gpar(fill = bar_fill),
-                        ylim = ylim))
-    
-  } else {
-  
-  bar_anno <- HeatmapAnnotation(ha = anno_barplot(meta[,anno],
-                                                  height = anno_height,
-                                                  axis_param = list(at = labs,
-                                                                    labels = labs),
-                                                  gp = gpar(fill = bar_fill),
-                                                  ylim = ylim))
-  
-  
-  
-  
-  default_names <- list('g1Score' = 'G1 Arrest Score',
-                        'CytoChange' = 'Cytolytic Change')
-  
-  if (!is.null(anno_name)) {
-    
-    names(bar_anno) <- anno_name
-    
-  } else if (anno %in% names(default_names)) {
-    
-    names(bar_anno) <- default_names[[anno]]
-    
-  } else {
-    
-    names(bar_anno) <- anno
-    
-  }
-  
-  return(bar_anno)
-  
-  }
-  
-}
+
 
 
 
@@ -397,6 +257,8 @@ make_heatmap_annotations <- function(meta) {
                                                           col = colors.treatment, border = TRUE), 
                                   show_legend = FALSE, border = TRUE)
   
+  # TODO: Make function for creating simple legends (anno_simple)
+  
   # Make legend for ERi therapy
   erAnno <- HeatmapAnnotation(ERi = meta$ERi, show_legend = FALSE, border = TRUE, 
                               col = list(ERi = colors.treatment))
@@ -433,7 +295,7 @@ make_heatmap_annotations <- function(meta) {
               'responseAnno' = responseAnno, # change to "responseAnno"
               'pamAnno' = pamAnno, 
               'pamChangeAnno' = pamChangeAnno,
-              'siteAnno' <- siteAnno,
+              'siteAnno' = siteAnno,
               'patientAnno' = patientAnno,
               'htanPointer' = pointers,
               'sampleAnno' = anno.sIDs,
@@ -493,6 +355,78 @@ format_cats <- function(categories) {
   
 }
 
+# Function for making basic annotation legends
+make_anno_legend <- function(lgd_name, lgd_colors, lgd_rows = 2,
+                             lgd_fontsize = 12, lgd_gridsize = 4) {
+  
+  # Build legend
+  lgd <- Legend(title = lgd_name, labels = names(lgd_colors), nrow = lgd_rows,
+                legend_gp = gpar(fill = lgd_colors),  labels_gp = gpar(fontsize = lgd_fontsize), 
+                grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'), 
+                title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  
+  return(lgd)
+  
+}
+
+
+# Function to make anno_simple annotations and return 
+#  either as function or as HeatmapAnnotation object (default)
+make_anno_simple <- function(x, meta = NULL, anno = NULL, anno_name = NULL, 
+                             anno_colors = NULL, pallete = 'basel', 
+                             na_col = 'grey', border = TRUE,
+                             return_anno_simple = FALSE) {
+  
+  # Get values to annotation
+  if (missing(x)) {
+    
+    if (!is.null(meta) & !is.null(anno)) {
+    
+    x <- meta[,anno]
+    
+    } else {
+      
+      cat('\nERROR: NEED VALUES TO ANNOTATE!!!\n')
+      
+    }
+    
+  }
+  
+  # Get color scheme
+  if (is.null(anno_colors)) {
+    
+    anno_colors <- set_colors(x, col_name = pallete)
+    
+  }
+  
+  # Get annotation name
+  if (is.null(anno_name) & !is.null(anno)) {
+    
+    anno_name <- anno
+    
+  }
+  
+  # Build heatmap annotation
+  as <- anno_simple(x, col = anno_colors, na_col = na_col, 
+                      border = border)
+  
+  # Return as HeatmapAnnotation object
+  if (!return_anno_simple) {
+    
+    as <- HeatmapAnnotation(ha = as)
+    
+    # Name annotation
+    if (!is.null(anno_name)) {
+    
+      names(as) <- anno_name
+    
+    }
+    
+  }
+  
+  return(as)
+  
+}
 
 # Function to create heatmap annotation based on results of cutree 
 #   Currently only set up for column clustering
@@ -513,7 +447,8 @@ make_cutree_anno <- function(meta,
                              lgd_rows = 2,
                              lgd_fontsize = 12, 
                              lgd_gridsize = 4,
-                             k = 2) {
+                             k = 2,
+                             return_anno_simple = FALSE) {
   
   # Select samples
   if (is.null(select_samples)) {
@@ -612,7 +547,8 @@ make_cutree_anno <- function(meta,
   # Remove from meta if already present from previous run
   if (cluster_name %in% colnames(meta)) {
     
-    meta <- meta %>% select(-c(cluster_name))
+    meta <- meta %>% 
+      select(-c(cluster_name))
     
   }
   
@@ -630,7 +566,8 @@ make_cutree_anno <- function(meta,
     
     meta <- meta %>%
       group_by(Patient) %>%
-      mutate(!!cluster_name := case_when(is.na(.data[[cluster_name]]) & !is.na(lead(.data[[cluster_name]])) ~ lead(.data[[cluster_name]]),
+      mutate(!!cluster_name := case_when(is.na(.data[[cluster_name]]) & 
+                                           !is.na(lead(.data[[cluster_name]])) ~ lead(.data[[cluster_name]]),
                                          TRUE ~ .data[[cluster_name]])) %>%
       ungroup() %>%
       data.frame(check.names = FALSE)
@@ -638,9 +575,6 @@ make_cutree_anno <- function(meta,
     meta <- meta[meta.rownames,]
     
   }
-  
-  
-  print(cluster_colors)
   
   # Set annotation colors
   if (is.null(cluster_colors)) {
@@ -652,18 +586,14 @@ make_cutree_anno <- function(meta,
 
   
   # Build heatmap annotation
-  ctAnno = HeatmapAnnotation(Cluster = meta[,cluster_name], 
-                             show_legend = FALSE, 
-                             na_col = 'grey',
-                             col = list(Cluster = cluster_colors), 
-                             border = TRUE)
-  names(ctAnno) <- cluster_name
+  ctAnno <- make_anno_simple(meta[,cluster_name], 
+                             anno_colors = cluster_colors, 
+                             anno_name = cluster_name)
+  
   
   # Build legend
-  ctLgd <- Legend(title = cluster_name, labels = names(cluster_colors), nrow = lgd_rows,
-                  legend_gp = gpar(fill = cluster_colors),  labels_gp = gpar(fontsize = lgd_fontsize), 
-                  grid_height = unit(lgd_gridsize, 'mm'), grid_width = unit(lgd_gridsize, 'mm'), 
-                  title_gp = gpar(fontsize = lgd_fontsize, fontface = "bold"))
+  ctLgd <- make_anno_legend(lgd_name = cluster_name, lgd_colors = cluster_colors, lgd_rows = lgd_rows, 
+                            lgd_fontsize = lgd_fontsize, lgd_gridsize = lgd_gridsize)
   
   
   return(list(ctAnno = ctAnno,
@@ -672,6 +602,150 @@ make_cutree_anno <- function(meta,
   
 }
 
+# Function for creating barplot column annotations for heatmaps
+# TODO: Update axis parameters
+make_barplot_annotation <- function(meta, anno, anno_height = unit(1, 'in'), 
+                                    bar_fill = c('cyan', 'black', 'magenta'),
+                                    labs = NULL, 
+                                    ylim = NULL,
+                                    lSize = NULL, 
+                                    return_bar_anno = FALSE,
+                                    anno_name = NULL) {
+  
+  meta[,anno] <- as.numeric(meta[,anno])
+  
+  # Set barplot colors
+  if (!is.null(bar_fill)) {
+    
+    # Use if just single color
+    if (length(bar_fill) == 1) {
+      
+      bar_fill <- bar_fill
+      
+      # Else, make continuous function  
+    } else if (length(bar_fill) != length(meta[,anno])) {
+      
+      bar_fill <- make_heatmap_colors(meta[,anno], htColors = bar_fill, 
+                                      qMin = 0.05, qMax = 0.95)
+      bar_fill <- bar_fill(meta[,anno])
+      
+      # Or assign color to each value  
+    } else {
+      
+      bar_fill <- bar_fill
+      
+    }
+    
+  }
+  
+  # Compute axis parameters if not provided
+  if (is.null(labs) | is.null(ylim) | is.null(lSize)) {
+    
+    # Get min and max values
+    m.ax <- ceiling(max(meta[,anno], na.rm = TRUE)*2) / 2
+    m.in <- min(0, (floor(min(meta[,anno], na.rm = TRUE)*2) / 2))
+    
+    # Set axis step size
+    if (is.null(lSize)) {
+      
+      # Use lims if provided
+      if (!is.null(ylim)) {
+        
+        if (ylim[2] >= 2) {
+          
+          lSize <- 1
+          
+        } else {
+          
+          lSize <- 0.5
+          
+        }
+        
+      } else {
+        
+        # Else use min/max
+        if (m.ax >= 2) {
+          
+          lSize <- 1
+          
+        } else {
+          
+          lSize <- 0.5
+          
+        }
+        
+      }
+      
+    }
+    
+    # Set labels
+    if (is.null(labs)) {
+      
+      if (!is.null(ylim)) {
+        
+        labs <- seq(ylim[1], ylim[2], lSize)
+        
+      } else {
+        
+        labs <- seq(m.in,m.ax,lSize)
+        
+      }
+      
+    }
+    
+    # Set y limits
+    if (is.null(ylim)) {
+      
+      ylim <- c(m.in,m.ax)
+      
+    }
+    
+  }
+  
+  
+  # Create barplot anotation
+  bar_anno <- anno_barplot(meta[,anno],
+                           height = anno_height,
+                           axis_param = list(at = labs,
+                                             labels = labs),
+                           gp = gpar(fill = bar_fill),
+                           ylim = ylim)
+  
+  # TODO: Below can be restructured 
+  
+  # Return as just anno_barplot function and not HeatmapAnnotation object
+  if (return_bar_anno) {
+    
+    return(bar_anno)
+    
+  # Return as HeatmapAnnotation object  
+  } else {
+    
+    bar_anno <- HeatmapAnnotation(ha = bar_anno)
+    
+    default_names <- list('g1Score' = 'G1 Arrest Score',
+                          'CytoChange' = 'Cytolytic Change',
+                          'TCIDelta' = 'T Cell Inflamed GEP')
+    
+    if (!is.null(anno_name)) {
+      
+      names(bar_anno) <- anno_name
+      
+    } else if (anno %in% names(default_names)) {
+      
+      names(bar_anno) <- default_names[[anno]]
+      
+    } else {
+      
+      names(bar_anno) <- anno
+      
+    }
+    
+    return(bar_anno)
+    
+  }
+  
+}
 
 # Convienence function to add new heatmap column annotation without recreating list
 # TODO: Add option to add new annotation at specified position
@@ -793,11 +867,17 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white',
   
   # Find columns on heatmap
   if (class(dend) == 'dendrogram') {
+    
     idx <- which(order.dendrogram(dend) %in% which(colnames(mat) %in% samples))
+    
   } else if (!is.null(order_columns)) {
+    
     idx <- which(order_columns %in% samples)
+    
   } else {
+    
     idx <- which(colnames(mat) %in% samples)
+    
   }
   print(idx)
   rBound <- idx / ncol(mat)
@@ -806,14 +886,14 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white',
   # Merge overlapping boundaries
   if (merge_overlaps) {
     
-  df <- round(data.frame(lBound, rBound), digits = 6) %>% 
-    mutate(indx = c(0, cumsum(as.numeric(lead(lBound)) > cummax(as.numeric(rBound)))[-n()])) %>%
-    group_by(indx) %>% 
-    summarise(lBound = min(lBound), rBound = max(rBound)) %>% 
-    data.frame()
-  lBound <- df$lBound
-  rBound <- df$rBound
-  
+    df <- round(data.frame(lBound, rBound), digits = 6) %>% 
+      mutate(indx = c(0, cumsum(as.numeric(lead(lBound)) > cummax(as.numeric(rBound)))[-n()])) %>%
+      group_by(indx) %>% 
+      summarise(lBound = min(lBound), rBound = max(rBound)) %>% 
+      data.frame()
+    lBound <- df$lBound
+    rBound <- df$rBound
+    
   }
   
   # Overlay on top of heatmap
@@ -900,10 +980,8 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), res = NULL
                 box_col = box_col, box_width = box_width)
     
   }
+  
   try(dev.off(), silent = TRUE)
-  
-  
-  #dev.off()
   
 }
 
@@ -937,7 +1015,8 @@ create_dendrogram <- function(mat, dist_func = 'euclidean',
 }
 
 # Function to create color scheme object for heatmap
-make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NULL, maxHt = NULL, qMin = 0.01, qMax = 0.99) {
+make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NULL, 
+                                maxHt = NULL, qMin = 0.01, qMax = 0.99) {
   
   # Get color scheme and number of intensity points
   if (is.null(htColors)) {
@@ -1403,8 +1482,6 @@ make_heatmap <- function(mat,
     
   }
   
-  
- 
   
   # ~~~~~~~~~~~~~~ BUILD LEGEND OBJECTS ~~~~~~~~~~~~~~~~ #
   
