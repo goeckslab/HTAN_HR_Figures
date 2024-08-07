@@ -1208,7 +1208,8 @@ make_heatmap <- function(mat,
     
     # Subset category table down to select features
     select_features <- select_features[select_features %in% category_table[[1]]]
-    #category_table <- category_table[category_table[[1]] %in% select_features,]
+    category_table <- category_table[category_table[[1]] %in% select_features,]
+    rownames(category_table) <- category_table[[1]]
     category_table <- category_table[select_features,]
     mat <- mat[category_table[[1]],,drop = FALSE]
     
