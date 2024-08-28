@@ -1117,6 +1117,7 @@ make_heatmap <- function(mat,
                          
                          compute_change = FALSE,
                          
+                         ht_lgd = NULL,
                          lgd_name = 'Activity', 
                          ht_cols = c('cyan', 'black', 'magenta'),
                          col_func = NULL,
@@ -1437,12 +1438,16 @@ make_heatmap <- function(mat,
   }
   
   # Create heatmap legend
-  ht_lgd = Legend(title = lgd_name, direction = "horizontal", 
-                  legend_width = unit(ht_lgd_length, 'in'), 
-                  legend_height = unit(ht_lgd_length, 'in'), 
-                  title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), 
-                  labels_gp = gpar(fontsize = lgdFntSize), 
-                  title_position = "topcenter", col_fun = col_func)
+  if (is.null(ht_lgd)) {
+    
+    ht_lgd = Legend(title = lgd_name, direction = "horizontal", 
+                    legend_width = unit(ht_lgd_length, 'in'), 
+                    legend_height = unit(ht_lgd_length, 'in'), 
+                    title_gp = gpar(fontsize = lgdFntSize, fontface = "bold"), 
+                    labels_gp = gpar(fontsize = lgdFntSize), 
+                    title_position = "topcenter", col_fun = col_func)
+    
+  }
   
   # Main heatmap body
   ht <- Heatmap(mat, col = col_func, show_heatmap_legend = FALSE, 
