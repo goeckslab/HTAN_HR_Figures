@@ -229,61 +229,152 @@ onco_row_anno <- function(var_list) {
 
 # Function to make binary versions of each variant type
 #   * Note samples with no CNV or SNV calls are not removed
-# TODO: Make a more generalizable function that parses through alteration types from CNV and SNV matrices
-binary_variant_matrices <- function(cnvs.dat, snvs.dat, merge_snvs = FALSE) {
+binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, merge_snvs = FALSE) {
   
-  # Get all CNV types
-  cnv_types <- cnvs.dat %>% as.matrix() %>% as.vector() %>% unique() 
-  cnv_types <- cnv_types[!is.na(cnv_types)]
-  cnv_types <- cnv_types[cnv_types != 'ND-CNV']
-  
-  # Get all SNV types
-  snv_types <- snvs.dat %>% as.matrix() %>% as.vector() %>% unique() 
-  snv_types <- snv_types[!is.na(snv_types)]
-  snv_types <- snv_types[snv_types != 'ND-SNV']
-  
-  # Create matrices to store each variant type
-  var_list <- list()
-  
-  # CNVs
-  for (ct in cnv_types) {
-    m <- matrix(0, nrow = dim(cnvs.dat)[1], ncol = dim(cnvs.dat)[2], dimnames = list(rownames(cnvs.dat), colnames(cnvs.dat)))
-    m[as.matrix(cnvs.dat) %in% c(ct)] <- 1
-    var_list[[ct]] <- t(m)
-  }
-  
-  # SNVs
-  if (merge_snvs) { # Merge into single matrix
+  # Helper: extract unique non-NA types from a matrix-like object
+  get_variant_types <- function(dat) {
     
-    m <- matrix(0, nrow = dim(snvs.dat)[1], ncol = dim(snvs.dat)[2], dimnames = list(rownames(snvs.dat), colnames(snvs.dat)))
-    m[as.matrix(snvs.dat) %in% snv_types] <- 1
-    var_list[['SNV']] <- t(m)
-    
-  } else { # Else split by mutation type
-    
-    for (st in snv_types) { 
-      m <- matrix(0, nrow = dim(snvs.dat)[1], ncol = dim(snvs.dat)[2], dimnames = list(rownames(snvs.dat), colnames(snvs.dat)))
-      m[as.matrix(snvs.dat) %in% c(st)] <- 1
-      var_list[[st]] <- t(m)
+    if (is.null(dat)) {
+      
+      character(0) %>%
+        return()
+      
+    } else {
+      
+      dat %>%
+        as.matrix() %>%
+        as.vector() %>%
+        na.omit() %>%
+        unique() %>%
+        return()
+      
     }
     
   }
   
+  # Helper: make a binary matrix for a given variant type
+  make_binary_matrix <- function(dat, variant_type) {
+    
+    m <- matrix(0,
+                nrow = nrow(dat),
+                ncol = ncol(dat),
+                dimnames = dimnames(as.matrix(dat)))
+    m[as.matrix(dat) == variant_type] <- 1
+    t(m)
+    
+  }
   
-  # Samples missing CNV calls
-  nd.cnvs.dat <- matrix(0, nrow = dim(cnvs.dat)[1], ncol = dim(cnvs.dat)[2], dimnames = list(rownames(cnvs.dat), colnames(cnvs.dat)))
-  nd.cnvs.dat[as.matrix(cnvs.dat) %in% c('ND-CNV')] <- 1
-  var_list[['ND-CNV']] <- t(nd.cnvs.dat)
+  cnv_types <- get_variant_types(cnvs.dat)
+  snv_types <- get_variant_types(snvs.dat)
+  noData_types <- get_variant_types(noData.dat)
   
-  # Samples missing SNV calls
-  nd.snvs.dat <- matrix(0, nrow = dim(snvs.dat)[1], ncol = dim(snvs.dat)[2], dimnames = list(rownames(snvs.dat), colnames(snvs.dat)))
-  nd.snvs.dat[as.matrix(snvs.dat) %in% c('ND-SNV')] <- 1
-  var_list[['ND-SNV']] <- t(nd.snvs.dat)
   
-  # Return just SNV if merging
-  if (merge_snvs) {snv_types <- c('SNV')}
+  var_list <- list()
   
-  return(list(var_list, cnv_types, snv_types))
+  # CNV binary matrices
+  for (ct in cnv_types) {
+    
+    var_list[[ct]] <- make_binary_matrix(cnvs.dat, ct)
+    
+  }
+  
+  # SNV binary matrices
+  if (merge_snvs) {
+    
+    merged <- matrix(0,
+                     nrow = nrow(snvs.dat),
+                     ncol = ncol(snvs.dat),
+                     dimnames = dimnames(as.matrix(snvs.dat)))
+    merged[as.matrix(snvs.dat) %in% snv_types] <- 1
+    var_list[["SNV"]] <- t(merged)
+    snv_types <- "SNV"
+    
+  } else {
+    
+    for (st in snv_types) {
+      
+      var_list[[st]] <- make_binary_matrix(snvs.dat, st)
+    }
+    
+  }
+  
+  # No data matrices
+  if (!is.null(noData.dat)) {
+    
+    for (nd in noData_types) {
+      
+      var_list[[nd]] <- make_binary_matrix(noData.dat, nd)
+    }
+    
+  }
+  
+  return(list(var_list, 
+              cnv_types, 
+              snv_types, 
+              noData_types))
+  
+}
+
+
+# Function to create lists of matrices for each variant type including matrices indicating potentially missing data
+variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types) { 
+  
+ 
+  # CNVs and SNVs/Indels
+  var_list.all <- list()
+  for (v in c(cnv_types, snv_types, noData_types)) { 
+    
+    var_list.all[[v]] <- biMats[[v]]
+    
+  }
+  var_list.all <- unify_mat_list(var_list.all)
+  
+ # CNVs only
+  var_list.cnvs <- list()
+  for (ct in c(cnv_types, noData_types)) { 
+    
+    var_list.cnvs[[ct]] <- biMats[[ct]]
+    
+  }
+  var_list.cnvs <- unify_mat_list(var_list.cnvs)
+  
+  # SNVs/Indels only
+  var_list.snvs <- list()
+  for (st in c(snv_types, noData_types)) { 
+    
+    var_list.snvs[[st]] <- biMats[[st]]
+    
+  }
+  var_list.snvs <- unify_mat_list(var_list.snvs)
+  
+  return(list(var_list.all, 
+              var_list.cnvs, 
+              var_list.snvs))
+  
+}
+
+# Function to create lists of matrices for each variant type including matrices indicating  missing data
+#   Idea is to make sure all matrices for each type are of equal dimensions
+variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types) {
+  
+  # Helper: extract and unify matrices for a given set of types
+  build_var_list <- function(types) {
+    
+    types %>%
+      set_names() %>%
+      lapply(function(t) biMats[[t]]) %>%
+      unify_mat_list() %>%
+      return()
+    
+  }
+  
+  var_list.all  <- build_var_list(c(cnv_types, snv_types, noData_types))
+  var_list.cnvs <- build_var_list(c(cnv_types, noData_types))
+  var_list.snvs <- build_var_list(c(snv_types, noData_types))
+  
+  return(list(all = var_list.all, 
+              cnvs = var_list.cnvs, 
+              snvs = var_list.snvs))
   
 }
 
@@ -350,48 +441,54 @@ filter_variants <- function(var_list, min_vars = 2, meta.sub = NULL) {
   
 }
 
-
-# Function to create lists of matrices for each variant type including matrices indicating potentially missing data
-variant_matrix_lists <- function(biMats, cnv_types, snv_types) { 
+# Logic to determine if oncoplot should be created 
+set_to_run <- function(var_list, run_var) {
   
-  # Get any samples with missing data
-  no_cnv_samples <- colnames(biMats[['ND-CNV']])[colSums(biMats[['ND-CNV']]) > 0]
-  no_snv_samples <- colnames(biMats[['ND-SNV']])[colSums(biMats[['ND-SNV']]) > 0]
-  no_var_samples <- union(no_cnv_samples, no_snv_samples)
-  
-  # All alteration types
-  var_list.all <- list()
-  for (v in c(cnv_types, snv_types)) { var_list.all[[v]] <- biMats[[v]][,!colnames(biMats[[v]]) %in% no_var_samples,drop=FALSE] }
-  var_list.all <- unify_mat_list(var_list.all)
-  
-  # CNVs only
-  var_list.cnvs <- list()
-  for (ct in cnv_types) { var_list.cnvs[[ct]] <- biMats[[ct]][,!colnames(biMats[[ct]]) %in% no_cnv_samples,drop=FALSE] }
-  var_list.cnvs <- unify_mat_list(var_list.cnvs)
-  
-  # SNVs only
-  var_list.snvs <- list()
-  for (st in snv_types) { var_list.snvs[[st]] <- biMats[[st]][,!colnames(biMats[[st]]) %in% no_snv_samples,drop=FALSE] }
-  var_list.snvs <- unify_mat_list(var_list.snvs)
-  
-  # Include all missing data
-  var_list.missing <- unify_mat_list(biMats)
-  
-  return(list(var_list.all, var_list.cnvs, var_list.snvs, var_list.missing))
+  return(nrow(do.call(pmax,var_list)) >= 1 &
+           length(var_list) >= 1 & run_var)
   
 }
 
+# Create filename using prefix and variant matrix types
+set_onco_fn <- function(pre = NULL, suf = NULL, fn.ext = '.png') {
+  
+  # Set file name
+  if (!is.null(pre)) {
+    
+    return(paste0(pre, suf, fn.ext))
+    
+  } else {
+    
+    return(NULL)
+    
+  }
+  
+}
 
 # A convienence function for processing variant data into lists of 
 #   binary matrices suitable for oncoprint and other functions
-var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, min_vars = 1, 
-                              select_samples = NULL, select_variants = NULL) {
+var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, 
+                              min_vars = 1, 
+                              noData.dat = NULL,
+                              select_samples = NULL, 
+                              select_variants = NULL,
+                              all_variants = TRUE, 
+                              cnvs_only = FALSE, 
+                              snvs_only = FALSE,
+                              pre = NULL) {
   
   # Select only specific variants if specified
   if (!is.null(select_variants)) {
     
     cnvs.dat <- cnvs.dat[,colnames(cnvs.dat) %in% select_variants,drop = FALSE]
     snvs.dat <- snvs.dat[,colnames(snvs.dat) %in% select_variants,drop = FALSE]
+    
+    # Filter no data matrix
+    if (!is.null(noData.dat)) {
+      
+      noData.dat <- noData.dat[,colnames(noData.dat) %in% select_variants,drop = FALSE]
+      
+    }
     
   }   
   
@@ -400,51 +497,55 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, min_vars = 1,
     
     cnvs.dat <- cnvs.dat[select_samples,,drop=FALSE]
     snvs.dat <- snvs.dat[select_samples,,drop=FALSE]
-    meta.sub <- meta[select_samples,,drop=FALSE]
+    meta <- meta[select_samples,,drop=FALSE]
     
-  } else {
+    # Filter no data matrix
+    if (!is.null(noData.dat)) {
+      
+      noData.dat <- noData.dat[select_samples,,drop=FALSE]
+      
+    }
     
-    meta.sub <- meta
-    
-  }
+  } 
   
   # Create binary matrices for each variant type
   bvm.return <- binary_variant_matrices(cnvs.dat, snvs.dat)
   biMats <- bvm.return[[1]]
   cnv_types <- bvm.return[[2]]
   snv_types <- bvm.return[[3]]
+  noData_types <- bvm.return[[4]]
   
   # Create unified lists for all variant types (each plot type)
-  var_lists <- variant_matrix_lists(biMats, cnv_types, snv_types)
-  var_list.all <- var_lists[[1]]
-  var_list.cnvs <- var_lists[[2]]
-  var_list.snvs <- var_lists[[3]]
-  var_list.missing <- var_lists[[4]]
+  var_lists <- variant_matrix_lists(biMats, cnv_types, snv_types, noData_types)
+  var_list.all <- var_lists[['all']]
+  var_list.cnvs <- var_lists[['cnvs']]
+  var_list.snvs <- var_lists[['snvs']]
   
+
   # Filter variant matrices using thresholds
-  var_list.all <- filter_variants(var_list.all, min_vars = min_vars, meta.sub)
-  var_list.cnvs <- filter_variants(var_list.cnvs, min_vars = min_vars, meta.sub)
-  var_list.snvs <- filter_variants(var_list.snvs, min_vars = min_vars, meta.sub)
+  var_list.all <- filter_variants(var_list.all, min_vars = min_vars, meta)
+  var_list.cnvs <- filter_variants(var_list.cnvs, min_vars = min_vars, meta)
+  var_list.snvs <- filter_variants(var_list.snvs, min_vars = min_vars, meta)
   
-  # Only use variants from joint CNV/SNV for missing matrices
-  if (length(var_list.all) >= 1) {
-    
-    keep_vars <- rownames(var_list.all[[1]])
-    var_list.missing_sub <- list()
-    
-    for (vt in names(var_list.missing)) {  var_list.missing[[vt]] <- var_list.missing[[vt]][keep_vars,,drop=FALSE]  }
-    
-    # Change to underscore for missing data
-    names(var_list.missing) <- gsub('-', '_', names(var_list.missing))
-    
-  } else {
-    
-    var_list.missing <- list()
-    
-  }
-  
-  return(list(var_list.all, var_list.cnvs, var_list.snvs, var_list.missing, meta.sub))
-  
+
+  # Store variant matrix types and parameters in new list and return
+  return(
+    var_lists <- list(
+      all = list(var_lists = var_list.all,
+                 run = set_to_run(var_list.all, all_variants),
+                 fn = set_onco_fn(pre = pre),
+                 oncoHT = NULL),
+      cnvs = list(var_lists = var_list.cnvs,
+                  run = set_to_run(var_list.cnvs, cnvs_only),
+                  fn = set_onco_fn(pre = pre, suf = '_cnvs'),
+                  oncoHT = NULL),
+      snvs = list(var_lists = var_list.snvs,
+                  run = set_to_run(var_list.snvs, snvs_only),
+                  fn = set_onco_fn(pre = pre, suf = '_snvs'),
+                  oncoHT = NULL)
+    )
+  )
+ 
 }
 
 
@@ -489,9 +590,12 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             lgd_rows = 3,
                             lgd_gap = unit(2, 'mm'),
                             lgd_pack_gap = unit(2, 'mm'),
+                            max_lgd_width = NULL, 
                           
                             ht_gap = unit(4, "mm"),
                             
+                            add_width = 0, 
+                            add_height = 0,
                             ht_height = NULL, ht_width = NULL) {
   
   # Compute binary matrix for row and column ordering
@@ -816,6 +920,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     
     if (!is.null(fn)) {save_htan_heatmap(list(ht, lgd_list), fn, 
                                          extend_w = 0, res_factor = 1,
+                                         max_width = max_lgd_width, 
+                                         add_width = add_width, 
+                                         add_height = add_height,
+                                         lgd_gap = lgd_pack_gap,
                                          ht_gap = ht_gap
                                          )}
     
@@ -852,10 +960,28 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
 
 # Main function for formatting alteration data and generating 
 #   oncoplots using oncoPrint() from ComplexHeatmap
-make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL, 
-                           select_variants = NULL, min_vars = 1, 
-                           top_anno = NULL, bottom_anno = NULL, 
-                           ht_height = NULL, ht_width = NULL, 
+make_oncoplots <- function(cnvs.dat, 
+                           snvs.dat, 
+                           meta, 
+                           
+                           noData.dat = NULL,
+                           
+                           select_samples = NULL, 
+                           
+                           select_variants = NULL, 
+                           min_vars = 1, 
+                           all_variants = TRUE, 
+                           cnvs_only = FALSE, 
+                           snvs_only = FALSE,
+                           
+                           top_anno = NULL, 
+                           bottom_anno = NULL, 
+                           
+                           ht_height = NULL, 
+                           ht_width = NULL, 
+                           add_width = 0, 
+                           add_height = 0,
+                           
                            heatmap_title = NULL, 
                            
                            ht_gap = unit(2, "mm"),
@@ -864,6 +990,7 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            lgd_rows = 3,
                            lgd_gap = unit(2, 'mm'),
                            lgd_pack_gap = unit(2, 'mm'),
+                           max_lgd_width = NULL, 
                            
                            column_barplot = TRUE,
                            column_split = NULL, 
@@ -874,163 +1001,107 @@ make_oncoplots <- function(cnvs.dat, snvs.dat, meta, select_samples = NULL,
                            column_split_title_border = NULL,
                            gap_border = TRUE,
                            cluster_columns = FALSE, 
+                           fix_order = FALSE, 
+                           keep_original_column_order = TRUE,
                            
-                           fix_order = FALSE, keep_original_column_order = TRUE,
+                           cluster_rows = FALSE, 
+                           row_names_side = 'left', 
+                           show_pct = TRUE, 
+                           pct_side = 'right', 
+                           row_barplot = TRUE,
+                           category_table = NULL, 
+                           format_cat_names = TRUE,
+                           cat_order = NULL,
                            
-                           all_variants = TRUE, cnvs_only = FALSE, snvs_only = FALSE,
-                           
-                           cluster_rows = FALSE, row_names_side = 'left', 
-                           show_pct = TRUE, pct_side = 'right', row_barplot = TRUE,
-                           category_table = NULL, cat_order = NULL,
-                           pre = NULL, return_objects = FALSE) {
+                           pre = NULL, 
+                           return_objects = FALSE) {
   
   # Format gene categories if table provided
-  if (!is.null(category_table)) {
+  if (!is.null(category_table) & format_cat_names) {
     
     category_table <- category_table %>%
-      mutate(Category = gsub('_', '\n', Category)) %>%
-      mutate(Category = gsub(' ', '\n', Category)) %>%
-      mutate(Category = gsub('-', '\n', Category))
+      mutate(Category = format_cats(Category)) 
     
   }
+  
+  # Transform input matrices
+  cnvs.dat <- t(cnvs.dat)
+  snvs.dat <- t(snvs.dat)
+  if (!is.null(noData.dat)) {noData.dat <- t(noData.dat)}
   
   # Process all data into unified lists for oncoprint
-  var_lists <- var_list_pipeline(t(cnvs.dat), t(snvs.dat), meta, min_vars = min_vars, 
-                                 select_samples = select_samples, select_variants = select_variants)
-  var_list.all <- var_lists[[1]]
-  var_list.cnvs <- var_lists[[2]]
-  var_list.snvs <- var_lists[[3]]
-  meta.sub <- var_lists[[5]]
+  var_lists <- var_list_pipeline(cnvs.dat, snvs.dat, meta, 
+                                 min_vars = min_vars, 
+                                 noData.dat = noData.dat,
+                                 select_samples = select_samples, 
+                                 select_variants = select_variants,
+                                 all_variants = all_variants,
+                                 cnvs_only = cnvs_only,
+                                 snvs_only = snvs_only,
+                                 pre = pre)
   
-  # CNVS AND SNVS
-  if (length(var_list.all) >= 1 & all_variants) {
+  # Parse processed matrix lists (all, cnvs only, snvs only) and create oncoplot for each
+  for (vl in names(var_lists)) {
     
-    if (nrow(do.call(pmax,var_list.all)) >= 1) {
+    if (var_lists[[vl]][['run']]) {
       
-      if (!is.null(pre)) {fn <- paste(pre, ".png", sep = '')} else {fn <- NULL}
+      var_list <- var_lists[[vl]][['var_lists']]
+      fn <- var_lists[[vl]][['fn']]
       
-      oncoHT.all <- build_oncoprint(var_list.all, meta, meta.sub, select_samples = select_samples, 
-                                    fn = fn, 
-                                    heatmap_title = heatmap_title, 
-                                    top_anno = top_anno, bottom_anno = bottom_anno, 
-                                    
-                                    lgd_fontsize = lgd_fontsize, 
-                                    lgd_gridsize = lgd_gridsize,
-                                    lgd_rows = lgd_rows,
-                                    lgd_gap = lgd_gap,
-                                    lgd_pack_gap = lgd_pack_gap, 
-                                    
-                                    fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
-                                    
-                                    column_barplot = column_barplot,
-                                    column_split = column_split, column_split_order = column_split_order, 
-                                    show_column_split_titles = show_column_split_titles, gap_border = gap_border,
-                                    column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
-                                    column_split_title_border = column_split_title_border,
-                                    
-                                    keep_original_column_order = keep_original_column_order,
-                                    category_table = category_table, cat_order = cat_order,
-                                    show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
-                                    row_barplot = row_barplot,
-                                    
-                                    ht_gap = ht_gap,
-                                    ht_height = ht_height, ht_width = ht_width) 
+      oncoHT <- build_oncoprint(var_list, meta,
+                                
+                                select_samples = select_samples, 
+                                fn = fn, 
+                                heatmap_title = heatmap_title, 
+                                top_anno = top_anno, 
+                                bottom_anno = bottom_anno, 
+                                
+                                lgd_fontsize = lgd_fontsize, 
+                                lgd_gridsize = lgd_gridsize,
+                                lgd_rows = lgd_rows,
+                                lgd_gap = lgd_gap,
+                                lgd_pack_gap = lgd_pack_gap, 
+                                max_lgd_width = max_lgd_width,
+                                
+                                fix_order = fix_order, 
+                                cluster_columns = cluster_columns, 
+                                cluster_rows = cluster_rows, 
+                                
+                                column_barplot = column_barplot,
+                                column_split = column_split, 
+                                column_split_order = column_split_order, 
+                                show_column_split_titles = show_column_split_titles, 
+                                gap_border = gap_border,
+                                column_split_fill_cols = column_split_fill_cols, 
+                                column_title_side = column_title_side,
+                                column_split_title_border = column_split_title_border,
+                                
+                                keep_original_column_order = keep_original_column_order,
+                                category_table = category_table, 
+                                cat_order = cat_order,
+                                show_pct = show_pct, 
+                                pct_side = pct_side, 
+                                row_names_side = row_names_side,
+                                row_barplot = row_barplot,
+                                
+                                ht_gap = ht_gap,
+                                add_width = add_width, 
+                                add_height = add_height,
+                                ht_height = ht_height, 
+                                ht_width = ht_width) 
       
-    } 
-    
-  } else {
-    
-    oncoHT.all <- NULL
-    
-  }
-  
-  # CNVS ONLY
-  if (length(var_list.cnvs) >= 1 & cnvs_only) {
-    
-    if (nrow(do.call(pmax,var_list.cnvs)) >= 1) {
+      var_lists[[vl]][['oncoHT']] <- oncoHT
       
-      if (!is.null(pre)) {fn <- paste(pre, "_cnvs.png", sep = '')} else {fn <- NULL}
-      
-      
-      oncoHT.cnvs <- build_oncoprint(var_list.cnvs, meta, meta.sub, select_samples = select_samples, 
-                                     fn = fn, heatmap_title = heatmap_title, top_anno = top_anno, 
-                                     bottom_anno = bottom_anno, 
-                                     
-                                     lgd_fontsize = lgd_fontsize, 
-                                     lgd_gridsize = lgd_gridsize,
-                                     lgd_rows = lgd_rows,
-                                     lgd_gap = lgd_gap,
-                                     lgd_pack_gap = lgd_pack_gap, 
-                                     
-                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
-                                     
-                                     column_barplot = column_barplot,
-                                     column_split = column_split, column_split_order = column_split_order, 
-                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
-                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
-                                     column_split_title_border = column_split_title_border,
-                                     
-                                     keep_original_column_order = keep_original_column_order,
-                                     category_table = category_table, cat_order = cat_order,
-                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
-                                     row_barplot = row_barplot,
-                                     ht_gap = ht_gap,
-                                     ht_height = ht_height, ht_width = ht_width) 
-    } 
-    
-  } else {
-    
-    oncoHT.cnvs <- NULL
-    
-  }
-  
-  # SNVS ONLY
-  if (length(var_list.snvs) >= 1 & snvs_only) {
-    
-    if (nrow(do.call(pmax,var_list.snvs)) >= 1) {
-      
-      if (!is.null(pre)) {fn <- paste(pre, "_snvs.png", sep = '')} else {fn <- NULL}
-      oncoHT.snvs <- build_oncoprint(var_list.snvs, meta, meta.sub, select_samples = select_samples, 
-                                     
-                                     fn = fn, heatmap_title = heatmap_title, top_anno = top_anno, 
-                                     bottom_anno = bottom_anno, 
-                                     
-                                     lgd_fontsize = lgd_fontsize, 
-                                     lgd_gridsize = lgd_gridsize,
-                                     lgd_rows = lgd_rows,
-                                     lgd_gap = lgd_gap,
-                                     lgd_pack_gap = lgd_pack_gap, 
-                                     
-                                     fix_order = fix_order, cluster_columns = cluster_columns, cluster_rows = cluster_rows, 
-                                     
-                                     column_barplot = column_barplot,
-                                     column_split = column_split, column_split_order = column_split_order, 
-                                     show_column_split_titles = show_column_split_titles, gap_border = gap_border,
-                                     column_split_fill_cols = column_split_fill_cols, column_title_side = column_title_side,
-                                     column_split_title_border = column_split_title_border,
-                                     
-                                     keep_original_column_order = keep_original_column_order,
-                                     category_table = category_table, cat_order = cat_order,
-                                     show_pct = show_pct, pct_side = pct_side, row_names_side = row_names_side,
-                                     row_barplot = row_barplot,
-                                     ht_gap = ht_gap,
-                                     ht_height = ht_height, ht_width = ht_width) 
-    } 
-    
-  } else {
-    
-    oncoHT.snvs <- NULL
+    }
     
   }
   
   # Return oncoplot objects
   if (return_objects) {
     
-    return(list(oncoHT.all, 
-                oncoHT.cnvs, 
-                oncoHT.snvs))
+    return(var_lists)
     
   }
-  
+ 
 }
 
