@@ -32,6 +32,15 @@ variant_cols <- c('Gain' = "#E31A1C",
                   "Substitution" = "#33A02C", 
                   "Insertion/Deletion" = "#FF7F00", 
                   'SNV' = "black", 
+                  
+                  # NEW 6/10/25: samples with missing data
+                  # Part cell
+                  #'NoData' = 'grey30',
+                  # Full cell
+                  'NoData' = 'grey65',
+                  # NoData-Alt
+                  'NoData-Alt' = 'grey30',
+                  
                   #'background' = "grey80"
                   'background' = "grey82"
                   )
@@ -40,6 +49,7 @@ variant_cols <- c('Gain' = "#E31A1C",
 size.cell <- 1
 size.cnv <- unit(1, 'pt')
 size.snv <- .33
+size.noData <- .4
 
 # Oncoplot alteration function
 alter_fun = list(
@@ -114,15 +124,26 @@ alter_fun = list(
   "Multi-hit" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
               gp = gpar(fill = variant_cols["Multi-hit"], col = NA))
-  }, 
-  "ND_CNV" = function (x, y, w, h) {
+  },
+  
+  # Part cell
+  #"NoData" = function (x, y, w, h) { 
+  #  grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
+  #            gp = gpar(fill = variant_cols["NoData"], col = NA))
+  #},
+  # Full cell
+  "NoData" = function (x, y, w, h) { 
+    grid.rect(x, y, w - unit(size.cell, "pt"), h - size.cnv, 
+              gp = gpar(fill = variant_cols["NoData"], col = NA))
+  },
+  
+  # NoData-Alt
+  "NoData-Alt" = function (x, y, w, h) { 
     grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
-              gp = gpar(fill = variant_cols["ND_CNV"], col = NA))
-  }, 
-  "ND_SNV" = function (x, y, w, h) {
-    grid.rect(x, y, w - unit(size.cell, "pt"), h*size.snv, 
-              gp = gpar(fill = variant_cols["ND_SNV"], col = NA))
-  }, 
+              gp = gpar(fill = variant_cols["NoData-Alt"], col = NA))
+  },
+  
+  
   "background" = function (x, y, w, h) {
     grid.rect(x, y, w - unit(size.cell, "pt"), h - unit(size.cell, 'pt'), 
               gp = gpar(fill = variant_cols["background"], col = NA))
@@ -132,28 +153,27 @@ alter_fun = list(
 
 # Function for saving oncoplot as png image
 # TODO: Could probably just use save heatmap function if formmated correctly
-draw_oncoprint <- function(ht, fn, pd, 
-                           column_title = NULL) {
+#draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
   
   # Draw dummy plot to determine figure size
-  pdf(NULL)
-  dht <- draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
-              annotation_legend_list = pd, column_title = column_title)
-  wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
-  try(dev.off(), silent = TRUE)
+#  pdf(NULL)
+#  dht <- draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
+#              annotation_legend_list = pd, column_title = column_title)
+#  wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
+#  try(dev.off(), silent = TRUE)
   
   # Set width, height, and resolution
-  w <- wh[1] 
-  h <- wh[2] 
-  res <- (w*h)
+#  w <- wh[1] 
+#  h <- wh[2] 
+#  res <- (w*h)
   
   # Save as png
-  png(filename = fn, width = w, height = h, units = 'in', res = res)
-  draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
-       annotation_legend_list = pd, column_title = column_title)
-  dev.off()
+#  png(filename = fn, width = w, height = h, units = 'in', res = res)
+#  draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
+#       annotation_legend_list = pd, column_title = column_title)
+#  dev.off()
   
-}
+#}
 
 # Function to sort columns using mutual exclusivity
 meSort <- function(m, row_order = NULL) {
@@ -177,6 +197,7 @@ meSort <- function(m, row_order = NULL) {
         score <- score + 2^(length(x)-i);
         
       }
+      
     }
     
     return(score)
@@ -195,9 +216,12 @@ meSort <- function(m, row_order = NULL) {
 
 
 
-
 # Function for creating bar annotation showing column counts of variant types
-onco_column_anno <- function(var_list) {
+onco_column_anno <- function(var_list, count_NoData = FALSE, count_NoDataAlt = FALSE) {
+  
+  #print(names(var_list))
+  if (!count_NoData) {var_list[['NoData']] <- NULL}
+  if (!count_NoDataAlt) {var_list[['NoData-Alt']] <- NULL}
   
   # Compute column counts
   var_counts <- sapply(var_list, function(x) apply(x, 2, sum))
@@ -229,7 +253,8 @@ onco_row_anno <- function(var_list) {
 
 # Function to make binary versions of each variant type
 #   * Note samples with no CNV or SNV calls are not removed
-binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, merge_snvs = FALSE) {
+binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, 
+                                    noDataAlt.dat = NULL, merge_snvs = FALSE) {
   
   # Helper: extract unique non-NA types from a matrix-like object
   get_variant_types <- function(dat) {
@@ -267,6 +292,7 @@ binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, merge
   cnv_types <- get_variant_types(cnvs.dat)
   snv_types <- get_variant_types(snvs.dat)
   noData_types <- get_variant_types(noData.dat)
+  noDataAlt_types <- get_variant_types(noDataAlt.dat)
   
   
   var_list <- list()
@@ -298,12 +324,24 @@ binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, merge
     
   }
   
-  # No data matrices
+  # No data (sample level) matrices
   if (!is.null(noData.dat)) {
     
     for (nd in noData_types) {
       
       var_list[[nd]] <- make_binary_matrix(noData.dat, nd)
+      
+    }
+    
+  }
+  
+  # No data (gene level) matrices
+  if (!is.null(noDataAlt.dat)) {
+    
+    for (nd in noDataAlt_types) {
+      
+      var_list[[nd]] <- make_binary_matrix(noDataAlt.dat, nd)
+      
     }
     
   }
@@ -311,51 +349,16 @@ binary_variant_matrices <- function(cnvs.dat, snvs.dat, noData.dat = NULL, merge
   return(list(var_list, 
               cnv_types, 
               snv_types, 
-              noData_types))
+              noData_types,
+              noDataAlt_types))
   
 }
 
 
-# Function to create lists of matrices for each variant type including matrices indicating potentially missing data
-variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types) { 
-  
- 
-  # CNVs and SNVs/Indels
-  var_list.all <- list()
-  for (v in c(cnv_types, snv_types, noData_types)) { 
-    
-    var_list.all[[v]] <- biMats[[v]]
-    
-  }
-  var_list.all <- unify_mat_list(var_list.all)
-  
- # CNVs only
-  var_list.cnvs <- list()
-  for (ct in c(cnv_types, noData_types)) { 
-    
-    var_list.cnvs[[ct]] <- biMats[[ct]]
-    
-  }
-  var_list.cnvs <- unify_mat_list(var_list.cnvs)
-  
-  # SNVs/Indels only
-  var_list.snvs <- list()
-  for (st in c(snv_types, noData_types)) { 
-    
-    var_list.snvs[[st]] <- biMats[[st]]
-    
-  }
-  var_list.snvs <- unify_mat_list(var_list.snvs)
-  
-  return(list(var_list.all, 
-              var_list.cnvs, 
-              var_list.snvs))
-  
-}
 
-# Function to create lists of matrices for each variant type including matrices indicating  missing data
+# Function to create lists of matrices for each variant type including matrices indicating missing data
 #   Idea is to make sure all matrices for each type are of equal dimensions
-variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types) {
+variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types, noDataAlt_types) {
   
   # Helper: extract and unify matrices for a given set of types
   build_var_list <- function(types) {
@@ -368,9 +371,9 @@ variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types) {
     
   }
   
-  var_list.all  <- build_var_list(c(cnv_types, snv_types, noData_types))
-  var_list.cnvs <- build_var_list(c(cnv_types, noData_types))
-  var_list.snvs <- build_var_list(c(snv_types, noData_types))
+  var_list.all  <- build_var_list(c(cnv_types, snv_types, noData_types, noDataAlt_types))
+  var_list.cnvs <- build_var_list(c(cnv_types, noData_types)) # does not including missing data
+  var_list.snvs <- build_var_list(c(snv_types, noData_types)) # does not including missing data
   
   return(list(all = var_list.all, 
               cnvs = var_list.cnvs, 
@@ -470,6 +473,7 @@ set_onco_fn <- function(pre = NULL, suf = NULL, fn.ext = '.png') {
 var_list_pipeline <- function(cnvs.dat, snvs.dat, meta, 
                               min_vars = 1, 
                               noData.dat = NULL,
+                              noDataAlt.dat = NULL,
                               select_samples = NULL, 
                               select_variants = NULL,
                               all_variants = TRUE, 
@@ -483,10 +487,17 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta,
     cnvs.dat <- cnvs.dat[,colnames(cnvs.dat) %in% select_variants,drop = FALSE]
     snvs.dat <- snvs.dat[,colnames(snvs.dat) %in% select_variants,drop = FALSE]
     
-    # Filter no data matrix
+    # Filter no data (sample level) matrix
     if (!is.null(noData.dat)) {
       
       noData.dat <- noData.dat[,colnames(noData.dat) %in% select_variants,drop = FALSE]
+      
+    }
+    
+    # Filter no data alt (gene level) matrix
+    if (!is.null(noDataAlt.dat)) {
+      
+      noDataAlt.dat <- noDataAlt.dat[,colnames(noDataAlt.dat) %in% select_variants,drop = FALSE]
       
     }
     
@@ -499,24 +510,35 @@ var_list_pipeline <- function(cnvs.dat, snvs.dat, meta,
     snvs.dat <- snvs.dat[select_samples,,drop=FALSE]
     meta <- meta[select_samples,,drop=FALSE]
     
-    # Filter no data matrix
+    # Filter no data (sample level) matrix
     if (!is.null(noData.dat)) {
       
       noData.dat <- noData.dat[select_samples,,drop=FALSE]
       
     }
     
+    # Filter no data (gene level) matrix
+    if (!is.null(noDataAlt.dat)) {
+      
+      noDataAlt.dat <- noDataAlt.dat[select_samples,,drop=FALSE]
+      
+    }
+    
   } 
   
+  
   # Create binary matrices for each variant type
-  bvm.return <- binary_variant_matrices(cnvs.dat, snvs.dat)
+  bvm.return <- binary_variant_matrices(cnvs.dat, snvs.dat, noData.dat = noData.dat, 
+                                        noDataAlt.dat = noDataAlt.dat)
   biMats <- bvm.return[[1]]
   cnv_types <- bvm.return[[2]]
   snv_types <- bvm.return[[3]]
   noData_types <- bvm.return[[4]]
+  noDataAlt_types <- bvm.return[[5]]
+  
   
   # Create unified lists for all variant types (each plot type)
-  var_lists <- variant_matrix_lists(biMats, cnv_types, snv_types, noData_types)
+  var_lists <- variant_matrix_lists(biMats, cnv_types, snv_types, noData_types, noDataAlt_types)
   var_list.all <- var_lists[['all']]
   var_list.cnvs <- var_lists[['cnvs']]
   var_list.snvs <- var_lists[['snvs']]
@@ -965,6 +987,7 @@ make_oncoplots <- function(cnvs.dat,
                            meta, 
                            
                            noData.dat = NULL,
+                           noDataAlt.dat = NULL,
                            
                            select_samples = NULL, 
                            
@@ -1028,11 +1051,14 @@ make_oncoplots <- function(cnvs.dat,
   cnvs.dat <- t(cnvs.dat)
   snvs.dat <- t(snvs.dat)
   if (!is.null(noData.dat)) {noData.dat <- t(noData.dat)}
+  if (!is.null(noDataAlt.dat)) {noDataAlt.dat <- t(noDataAlt.dat)}
+  
   
   # Process all data into unified lists for oncoprint
   var_lists <- var_list_pipeline(cnvs.dat, snvs.dat, meta, 
                                  min_vars = min_vars, 
                                  noData.dat = noData.dat,
+                                 noDataAlt.dat = noDataAlt.dat,
                                  select_samples = select_samples, 
                                  select_variants = select_variants,
                                  all_variants = all_variants,
