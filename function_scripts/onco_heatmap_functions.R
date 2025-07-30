@@ -151,29 +151,6 @@ alter_fun = list(
 )
 
 
-# Function for saving oncoplot as png image
-# TODO: Could probably just use save heatmap function if formmated correctly
-#draw_oncoprint <- function(ht, fn, pd, column_title = NULL) {
-  
-  # Draw dummy plot to determine figure size
-#  pdf(NULL)
-#  dht <- draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
-#              annotation_legend_list = pd, column_title = column_title)
-#  wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
-#  try(dev.off(), silent = TRUE)
-  
-  # Set width, height, and resolution
-#  w <- wh[1] 
-#  h <- wh[2] 
-#  res <- (w*h)
-  
-  # Save as png
-#  png(filename = fn, width = w, height = h, units = 'in', res = res)
-#  draw(ht,heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom',
-#       annotation_legend_list = pd, column_title = column_title)
-#  dev.off()
-  
-#}
 
 # Function to sort columns using mutual exclusivity
 meSort <- function(m, row_order = NULL) {
@@ -205,7 +182,7 @@ meSort <- function(m, row_order = NULL) {
   }
   
   # Get column scores
-  scores <- apply(m[row_order, ], 2, scoreCol)
+  scores <- apply(m[row_order, ,drop=FALSE], 2, scoreCol)
   
   # Set new order and return
   col_order <- sort(scores, decreasing=TRUE, index.return=TRUE)$ix
@@ -214,7 +191,45 @@ meSort <- function(m, row_order = NULL) {
   
 }
 
-
+# Function for creating column (sample) or row (gene) barplot annotation showing variant type counts 
+onco_counts_anno <- function(var_list, anno_side = 'top', count_NoData = FALSE, count_NoDataAlt = FALSE) {
+  
+  # Don't count missing data
+  if (!count_NoData) {var_list[['NoData']] <- NULL}
+  if (!count_NoDataAlt) {var_list[['NoData-Alt']] <- NULL}
+  
+  # Make column barplot annotaiton
+  if (anno_side == 'top') {
+    
+    # Compute column counts
+    var_counts <- sapply(var_list, function(x) apply(x, 2, sum))
+    
+    # Make annotation object and return
+    HeatmapAnnotation(cbar = anno_barplot(var_counts, height = unit(20, 'mm'), border = FALSE,
+                                          gp = gpar(fill = variant_cols[names(var_list)], 
+                                                    col = variant_cols[names(var_list)])), 
+                      show_annotation_name = FALSE) %>%
+      return()
+    
+  } else if (anno_side == 'right') {
+    
+    # Compute row counts
+    var_counts <- sapply(var_list, function(x) apply(x, 1, sum))
+    
+    # Make annotation object and return
+    rowAnnotation(rbar = anno_barplot(var_counts, border = TRUE, width = unit(3, "cm"),
+                                      gp = gpar(fill = variant_cols[colnames(var_counts)]),
+                                      axis_param = list(side = 'top', labels_rot = 0)),
+                  show_annotation_name = FALSE) %>%
+      return()
+    
+  } else {
+    
+    return(NULL)
+    
+  }
+  
+}
 
 # Function for creating bar annotation showing column counts of variant types
 onco_column_anno <- function(var_list, count_NoData = FALSE, count_NoDataAlt = FALSE) {
@@ -382,18 +397,30 @@ variant_matrix_lists <- function(biMats, cnv_types, snv_types, noData_types, noD
 }
 
 # Function for filtering variant matrices by min samples
+#  var_list: processed binary matrices
 #  Can be numeric to filter variants in min samples, but can also use named list to filter by
 #   variants found in samples that have data for a specified column in a meta table, or
 #    can be a named list with each item containing a named vector for specifiying a min number
 #     of samples for each group
 #  NOTE: NAMES LIST OPTION IS CURRENTLY SET UP AS AN "OR" OPTION --> VARIANTS MEETING ANY
 #          OF SUCH THRESHOLDS ARE SELECTED
-filter_variants <- function(var_list, min_vars = 2, meta.sub = NULL) {
+filter_variants <- function(var_list, min_vars = 2, meta.sub = NULL, 
+                            count_NoData = FALSE, 
+                            count_NoDataAlt = FALSE) {
+  
+  print(names(var_list))
   
   # Collapse list of variant matrices
   if (length(var_list) > 0) {
     
-    var_mat <- do.call(pmax,var_list)
+    var_list_count <- var_list
+    
+    # Don't count missing data
+    if (!count_NoData) {var_list_count[['NoData']] <- NULL}
+    if (!count_NoDataAlt) {var_list_count[['NoData-Alt']] <- NULL}
+    
+    # 1 if at least one of any variant type, else 0
+    var_mat <- do.call(pmax,var_list_count)
     
     # If min_vars is numeric, apply to all matrices in var_list
     if (is.numeric(min_vars)) { 
@@ -581,6 +608,9 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             top_anno = NULL, 
                             bottom_anno = NULL, 
                             
+                            count_NoData = FALSE, 
+                            count_NoDataAlt = FALSE,
+                            
                             cluster_columns = FALSE, 
                             column_order = NULL, 
                             fix_order = FALSE, 
@@ -704,7 +734,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     # Build row annotations for right side of oncoplot
     if (row_barplot) {
       
-      right_anno <- onco_row_anno(var_list)  
+      #right_anno <- onco_row_anno(var_list)  
+      right_anno <- onco_counts_anno(var_list, anno_side = 'right',
+                                     count_NoData = count_NoData, 
+                                     count_NoDataAlt = count_NoDataAlt)
       
     }  else {
       
@@ -803,7 +836,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
         column_groups <- unique(column_split)
         for (cg in sort(column_groups)) {
           
-          biMat.cg <- biMat[,column_split == cg]
+          biMat.cg <- biMat[,column_split == cg,drop=FALSE]
           cg.order <- colnames(biMat.cg)[meSort(biMat.cg, 
                                                 #row_order = NULL
                                                 row_order = order_rows
@@ -821,6 +854,17 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
       
     }
     
+    # Set column title side (mostly for grouping columns and labeling)
+    if (column_title_side == 'below_bar') {
+      
+      set_column_title_side <- 'top'
+      
+    } else {
+      
+      set_column_title_side <- column_title_side
+      
+    }  
+    
     # Build empty top heatmap object for ordering, clustering, and splitting
     top_anno.pre <- Heatmap(biMat, 
                             col = c('white', 'white'),
@@ -833,7 +877,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             column_split = column_split,
                             column_title = column_title,
                             column_title_gp = column_title_gp,
-                            column_title_side = column_title_side,
+                            column_title_side = set_column_title_side,
                             column_gap = column_gap,
                             show_parent_dend_line = FALSE,
                             cluster_columns = cluster_columns) 
@@ -841,7 +885,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     # Make column barplot annotation
     if (column_barplot) {
       
-      top_anno.bar <- onco_column_anno(var_list)  
+      #top_anno.bar <- onco_column_anno(var_list)  
+      top_anno.bar <- onco_counts_anno(var_list, anno_side = 'top',
+                                       count_NoData = count_NoData, 
+                                       count_NoDataAlt = count_NoDataAlt)
       
     } else {
       
@@ -855,6 +902,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     if (column_title_side == 'top') {
       
       top_anno.final <- top_anno.pre %v% top_anno.bar %v% top_anno[[1]]
+      
+    } else if (column_title_side == 'below_bar') {
+      
+      top_anno.final <- top_anno.bar %v% top_anno.pre %v% top_anno[[1]]
       
     } else {
       
@@ -924,7 +975,7 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
     
     # TEST PROVIDING REAL ANNOTATION INSTEAD OF FAUX ANNOTATION
     #print('TEST TOP ANNOTATION')
-    #onco_args[['top_annotation']] <- onco_column_anno(var_list)
+    #onco_args[['top_annotation']] <- onco_column_anno(var_list) # old function
     
     
     # Create oncoPrint heatmap object
@@ -988,6 +1039,8 @@ make_oncoplots <- function(cnvs.dat,
                            
                            noData.dat = NULL,
                            noDataAlt.dat = NULL,
+                           count_NoData = FALSE, 
+                           count_NoDataAlt = FALSE,
                            
                            select_samples = NULL, 
                            
@@ -1081,6 +1134,9 @@ make_oncoplots <- function(cnvs.dat,
                                 heatmap_title = heatmap_title, 
                                 top_anno = top_anno, 
                                 bottom_anno = bottom_anno, 
+                                
+                                count_NoData = count_NoData, 
+                                count_NoDataAlt = count_NoDataAlt,
                                 
                                 lgd_fontsize = lgd_fontsize, 
                                 lgd_gridsize = lgd_gridsize,
