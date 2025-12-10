@@ -865,8 +865,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
       
     }  
     
+    print(column_gap)
+    
     # Build empty top heatmap object for ordering, clustering, and splitting
-    top_anno.pre <- Heatmap(biMat, 
+    top_anno.pre <- Heatmap(mat = biMat, 
                             col = c('white', 'white'),
                             show_heatmap_legend = FALSE,
                             show_row_names = FALSE,
@@ -881,6 +883,10 @@ build_oncoprint <- function(var_list, meta, select_samples = NULL, fn = NULL, he
                             column_gap = column_gap,
                             show_parent_dend_line = FALSE,
                             cluster_columns = cluster_columns) 
+    
+    
+    #oncoHT <- rlang::invoke(oncoPrint, .args = onco_args)
+    
     
     # Make column barplot annotation
     if (column_barplot) {
@@ -1076,6 +1082,7 @@ make_oncoplots <- function(cnvs.dat,
                            column_split_fill_cols = NULL,
                            column_split_title_border = NULL,
                            gap_border = TRUE,
+                           column_gap = unit(2, 'mm'), # default is unit(1, 'mm) 
                            cluster_columns = FALSE, 
                            fix_order = FALSE, 
                            keep_original_column_order = TRUE,
@@ -1154,6 +1161,7 @@ make_oncoplots <- function(cnvs.dat,
                                 column_split_order = column_split_order, 
                                 show_column_split_titles = show_column_split_titles, 
                                 gap_border = gap_border,
+                                column_gap = column_gap,
                                 column_split_fill_cols = column_split_fill_cols, 
                                 column_title_side = column_title_side,
                                 column_split_title_border = column_split_title_border,
