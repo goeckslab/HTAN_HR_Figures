@@ -1296,6 +1296,8 @@ make_heatmap <- function(mat,
     # Update matrix for heatmap
     mat <- mat.change[rownames(mat),select_samples,drop=FALSE]
     
+    #print(head(mat))
+    
   } else {
     
     # Subset matrix to select samples

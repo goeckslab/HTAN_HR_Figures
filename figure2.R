@@ -22,9 +22,13 @@ source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_F
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures"
 
 
+# To retest outputs
+results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures2"
+
+
 ###################################
 #
-#   LOAD DATA
+#   LOAD MULTI-OMIC DATASETS
 #
 ###################################
 
@@ -41,6 +45,10 @@ snvs.htan <- load_snvs(meta.htan, fn.dir = source_dir)
 
 # GSVA enrichment scores (RNA-seq)
 gsva.htan <- load_gsva(meta.htan, fn.dir = source_dir)
+
+# GSVA paired delta values (RNA-seq)
+gsva.change.htan <- compute_paired_change(gsva.htan, meta.htan)
+
 
 # Gene expression (RNA-seq)
 
@@ -70,29 +78,62 @@ ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
 #
 #########################################################################
 
+# Paired tumor groups (for single time point)
+htan.paired <- c(
+  # HTA9-1
+  "HTA9-1_Bx1",
+  "HTA9-1_Bx2",
+  "HTA9-1_Bx4",
+  "HTA9-1_Bx5",
+  
+  # HTA9-2
+  "HTA9-2_Bx1",
+  "HTA9-2_Bx2",
+  
+  # HTA9-3
+  "HTA9-3_Bx1",
+  "HTA9-3_Bx2",
+  
+  # HTA9-14
+  "HTA9-14_Bx1",
+  "HTA9-14_Bx2",
+  "HTA9-14_Bx3",
+  
+  # HTA9-15
+  "HTA9-15_Bx1",
+  "HTA9-15_Bx2"
+)
 
-htan.paired <- c("HTA9-1_Bx1", "HTA9-1_Bx2", "HTA9-1_Bx4", "HTA9-1_Bx5", 
-                 "HTA9-2_Bx1", "HTA9-2_Bx2", 
-                 "HTA9-3_Bx1", "HTA9-3_Bx2", 
-                 "HTA9-14_Bx1", "HTA9-14_Bx2", "HTA9-14_Bx3", 
-                 "HTA9-15_Bx1", "HTA9-15_Bx2")
 
-
-htan.onProgression <- c("HTA9-1_Bx2", "HTA9-1_Bx5", 
-                        "HTA9-2_Bx2", 
-                        "HTA9-3_Bx2", 
-                        "HTA9-14_Bx2", "HTA9-14_Bx3", 
-                        "HTA9-15_Bx2")
+# On-progression (for delta values)
+htan.onProgression <- c(
+  # HTA9-1
+  "HTA9-1_Bx2",
+  "HTA9-1_Bx5",
+  
+  # HTA9-2
+  "HTA9-2_Bx2",
+  
+  # HTA9-3
+  "HTA9-3_Bx2",
+  
+  # HTA9-14
+  "HTA9-14_Bx2",
+  "HTA9-14_Bx3",
+  
+  # HTA9-15
+  "HTA9-15_Bx2"
+)
 
 
 
 #########################################################################
 #
-#   LOAD AND CONSTRUCT ANNOTATION OBJECTS FOR HEATMAPS AND ONCOPLOTS
+#   LOAD AND SET ANNOTATION OBJECTS FOR HEATMAPS AND ONCOPLOTS
 #
 #########################################################################
 
-# Load list of all annotations
+# Load list of all heatmap and oncoplot annotations
 annotations.htan <- make_heatmap_annotations(meta.htan)
 
 # List of legends for heatmaps showing all (paired) samples
@@ -103,60 +144,112 @@ lgds.change <- make_heatmap_legends(meta.htan, select_samples = htan.onProgressi
 
 
 
-# Oncoplot annotations
-onco_annotations.htan <- list(annotations.htan$onProgAnno %v% 
-                                annotations.htan$erAnno %v%
-                                annotations.htan$responseAnno %v%
-                                annotations.htan$pamAnno %v%
-                                annotations.htan$patientAnno %v% 
-                                annotations.htan$htanPointer %v% 
-                                annotations.htan$sampleAnno, 
-                              list(lgds.htan$opAstrLgd,
-                                   lgds.htan$onProgLgd,
-                                   lgds.htan$responseLgd,
-                                   lgds.htan$pamLgd))
+#  -- Oncoplot annotations (single time point) -- #
+onco_annotations.htan <- list(
+  
+  # Annotations
+  annotations.htan$onProgAnno %v% 
+    annotations.htan$erAnno %v%
+    annotations.htan$responseAnno %v%
+    annotations.htan$pamAnno %v%
+    annotations.htan$patientAnno %v% 
+    annotations.htan$htanPointer %v% 
+    annotations.htan$sampleAnno, 
+  
+  # Legends
+  list(lgds.htan$opAstrLgd,
+       lgds.htan$onProgLgd,
+       lgds.htan$responseLgd,
+       lgds.htan$pamLgd)
+)
 
 
-# Annotations for all samples with patient ID annotation
-top_annotations.htan <- list(annotations.htan$onProgAnno %v% 
-                               annotations.htan$erAnno %v%
-                               annotations.htan$responseAnno, 
-                             list(lgds.htan$opAstrLgd,
-                                  lgds.htan$onProgLgd, 
-                                  lgds.htan$responseLgd))
-btm_annotations.htan <- list(annotations.htan$pamAnno %v%
-                               annotations.htan$patientAnno %v% 
-                               annotations.htan$htanPointer %v% 
-                               annotations.htan$sampleAnno, 
-                             list(lgds.htan$pamLgd))
+# -- Annotations for all samples with patient ID annotation -- #
+top_annotations.htan <- list(
+  
+  # Annotations
+  annotations.htan$onProgAnno %v% 
+    annotations.htan$erAnno %v%
+    annotations.htan$responseAnno, 
+  
+  # Legends
+  list(lgds.htan$opAstrLgd,
+       lgds.htan$onProgLgd, 
+       lgds.htan$responseLgd)
+)
+
+
+btm_annotations.htan <- list(
+  
+  # Ananotations
+  annotations.htan$pamAnno %v%
+    annotations.htan$patientAnno %v% 
+    annotations.htan$htanPointer %v% 
+    annotations.htan$sampleAnno, 
+  
+  # Legends
+  list(lgds.htan$pamLgd)
+  
+)
 
 
 
-# Annotations for delta heatmaps
-top_annotations.change.htan <- list(annotations.htan$onProgAnno %v% 
-                                      annotations.htan$erAnno %v%
-                                      annotations.htan$responseAnno, 
-                                    list(lgds.change$opAstrLgd,
-                                         lgds.change$onProgLgd, 
-                                         lgds.change$responseLgd))
-btm_annotations.change.htan <- list(annotations.htan$pamChangeAnno %v%
-                                      annotations.htan$htanPointer %v% 
-                                      annotations.htan$biopPairAnno, 
-                                    list(lgds.change$pamChangeLgd))
+# -- Delta Heatmap Annotation -- #
+top_annotations.change.htan <- list(
+  
+  # Annotations
+  annotations.htan$onProgAnno %v% 
+    annotations.htan$erAnno %v%
+    annotations.htan$responseAnno, 
+  
+  # Legends
+  list(lgds.change$opAstrLgd,
+       lgds.change$onProgLgd, 
+       lgds.change$responseLgd)
+
+)
+
+
+btm_annotations.change.htan <- list(
+  
+  # Heatmaps
+  annotations.htan$pamChangeAnno %v%
+    annotations.htan$htanPointer %v% 
+    annotations.htan$biopPairAnno, 
+  
+  # Legends
+  list(lgds.change$pamChangeLgd)
+  
+)
 
 
 
 # Annotations for heatmaps split by patient (doesn't need patient ID annotation)
-top_annotations.split.htan <- list(annotations.htan$onProgAnno %v% 
-                                     annotations.htan$erAnno %v%
-                                     annotations.htan$responseAnno, 
-                                   list(lgds.htan$opAstrLgd,
-                                        lgds.htan$onProgLgd, 
-                                        lgds.htan$responseLgd))
-btm_annotations.split.htan <- list(annotations.htan$pamAnno %v%
-                                     annotations.htan$htanPointer %v% 
-                                     annotations.htan$sampleAnno, 
-                                   list(lgds.htan$pamLgd))
+top_annotations.split.htan <- list(
+  
+  # Heatmaps
+  annotations.htan$onProgAnno %v% 
+    annotations.htan$erAnno %v%
+    annotations.htan$responseAnno, 
+  
+  # Legends
+  list(lgds.htan$opAstrLgd,
+       lgds.htan$onProgLgd, 
+       lgds.htan$responseLgd)
+  
+)
+
+btm_annotations.split.htan <- list(
+  
+  # Heatmaps
+  annotations.htan$pamAnno %v%
+    annotations.htan$htanPointer %v% 
+    annotations.htan$sampleAnno, 
+  
+  # Legends
+  list(lgds.htan$pamLgd)
+  
+)
 
 
 ############################################################
@@ -178,25 +271,32 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 ####################################################################################
 
 # Oncoplot of select variants from relevant pathways with ordered columns
-# TODO: Change file naming
-make_oncoplots(cnvs.htan, 
-               snvs.htan,
-               meta.htan,
-               select_samples = htan.paired,
-               select_variants = dna_cats.htan$Gene,
-               category_table = dna_cats.htan,
-               
-               pre = paste0(results_dir.test,'/oncoplot_test'), 
-               
-               min_vars = 1,
-               
-               show_pct = FALSE,
-               cluster_columns = FALSE, 
-               cluster_rows = FALSE,
-               fix_order = TRUE,
-               ht_width = unit(10.5, 'in'),
-               ht_height = unit(7.7, 'in'),
-               bottom_anno = list(onco_annotations.htan[[1]], NULL))
+make_oncoplots(
+  
+  # CNV/SNV Calls
+  cnvs.htan, 
+  snvs.htan,
+  
+  # Sample meta data and annotations
+  meta.htan,
+  select_samples = htan.paired,
+  bottom_anno = list(onco_annotations.htan[[1]], NULL),
+  
+  # Select variants and annotations
+  select_variants = dna_cats.main$Gene,
+  category_table = dna_cats.main,
+  min_vars = 1,
+  
+  # Oncoplot arguments
+  pre = paste0(results_dir.test,'/figure2A'), 
+  show_pct = FALSE,
+  cluster_columns = FALSE, 
+  cluster_rows = FALSE,
+  fix_order = TRUE,
+  ht_width = unit(10.5, 'in'),
+  ht_height = unit(7.7, 'in')
+  
+)
 
 
 
@@ -210,40 +310,57 @@ make_oncoplots(cnvs.htan,
 # Note: make sure "REACTOME_REPLICATION_STRESS" is named appropriately
 
 # Intrinsic pathways from Mann-Whitney test (p < 0.1)
-gsva_pws.intrinsic <- c("E2F_TARGETS", "G2M_CHECKPOINT", 
-                        "KEGG_DNA_REPLICATION", "MTORC1_SIGNALING", 
-                        "MYC_TARGETS_V1", "OXIDATIVE_PHOSPHORYLATION", 
-                        "PROTEIN_SECRETION", "REACTOME_CELL_CYCLE", 
-                        "REACTOME_REPLICATION_STRESS", "REACTOME_S_PHASE", 
-                        "UNFOLDED_PROTEIN_RESPONSE")
+gsva_pws.intrinsic <- c(
+  "E2F_TARGETS",
+  "G2M_CHECKPOINT",
+  "KEGG_DNA_REPLICATION",
+  "MTORC1_SIGNALING",
+  "MYC_TARGETS_V1",
+  "MYC_TARGETS_V2",
+  "OXIDATIVE_PHOSPHORYLATION",
+  "REACTOME_CELL_CYCLE",
+  "REACTOME_REPLICATION_STRESS",
+  "REACTOME_S_PHASE"
+)
 
-# CLUSTER HEATMAP USING CHANGE ACROSS CDK4/6i
-ht.fn <- paste(results_dir.test, "gsva_test_heatmap.png", sep = '/')
+# Fixed order for groups
+gsva_cat.order.intrinsic <- c(
+  "Cell Cycle", 
+  "Replication Stress", 
+  "PI3K/AKT/mTOR", 
+  "Metabolic"
+)
 
-# TODO: Change function name
-make_heatmap(gsva.htan,
-             meta.htan,
-             select_samples = htan.onProgression,
-             top_anno = top_annotations.change.htan,  
-             btm_anno = btm_annotations.change.htan,
-             category_table = gsva_cats.htan, 
-             cat_order = c("Cell Cycle", "Replication Stress", "PI3K/AKT/mTOR", 
-                           "Cellular Process", "Metabolic"),
-             bar_anno = 'g1Score',
-             cluster_columns = TRUE,
-             
-             keep_row_order = FALSE,
-             
-             select_features = gsva_pws.intrinsic,
-             show_column_annotation_legend = FALSE,
-             heatmap_width = unit(5.5, 'in'),
-             heatmap_height = unit(6.25, 'in'),
-             add_width = -0.35,
-             split_column_by_dendrogram = 2,
-             compute_change = TRUE,
-             lgd_name = 'Activity Change',
-             split_by_cat = TRUE, 
-             fn = ht.fn
+
+# Heatmap of delta activity for intrinsic expression pathways
+make_heatmap(
+  
+  # GSVA scores
+  gsva.change.htan,
+  
+  # Sample meta data and annotations
+  meta.htan,
+  select_samples = htan.onProgression,
+  top_anno = top_annotations.change.htan,  
+  btm_anno = btm_annotations.change.htan,
+  bar_anno = 'g1Score',
+  
+  # Select pathways and annotations
+  select_features = gsva_pws.intrinsic,
+  category_table = gsva_cats.main, 
+  cat_order = gsva_cat.order.intrinsic,
+  split_by_cat = TRUE, 
+  
+  # Heatmap arguments
+  fn = file.path(results_dir.test, 'figure2B'),
+  lgd_name = 'Activity Change',
+  cluster_columns = TRUE,
+  split_column_by_dendrogram = 2,
+  show_column_annotation_legend = FALSE,
+  heatmap_width = unit(5.5, 'in'),
+  heatmap_height = unit(6.25, 'in'),
+  add_width = -0.35
+  
 )
 
 
