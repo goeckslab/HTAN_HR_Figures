@@ -493,7 +493,32 @@ merge_assays <- function(meta,
   
 }  
 
-
+# Function to rename heatmap annotation names if present in anno_specs list
+get_display_names <- function(anno_spec) {
+  
+  # Rename columns to the display names (anno_name); if missing, use the outer name
+  display_names <- vapply(names(anno_spec), function(meta_col) {
+    
+    
+    nm <- anno_spec[[meta_col]]$anno_name
+    
+    # Use if listed
+    if (is.null(nm) || nm == "") {
+      
+      meta_col 
+      
+    # Else, use original column name  
+    } else { 
+      
+      nm
+      
+    }  
+    
+  }, character(1))
+  
+  return(display_names)
+  
+}
 
 
 sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
@@ -501,10 +526,11 @@ sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
                            border = TRUE, gap = unit(3, "points"),
                            show_annotation_name = FALSE,
                            show_annotation_legend = TRUE,
-                           spacer_below = TRUE) {
+                           spacer_below = TRUE,
+                           spacer_gap = unit(0.00001, "points")) {
   
-  # If not annotation specs, no annotation
-  if (is.null(anno_spec)) {
+  # If no annotation specs, no annotation
+  if (is.null(anno_spec) || length(anno_spec) == 0) {
     
     return(NULL)
     
@@ -513,47 +539,41 @@ sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
   # Fill with meta values for each instance of each sample in group
   idx <- match(column_groups, meta[,assay_mat_sample_column])
   
-  print(idx)
+  # Rename columns to the display names (anno_name); if missing, use the outer name
+  display_names <- get_display_names(anno_spec)
+ 
   
-  # Build annotation vectors as a named list of columns
-  anno_cols <- lapply(names(anno_spec), function(meta_col) {
-    as.character(meta[idx, meta_col])
-  })
+  # Sub meta for sub heatmap annotations
+  df <- meta %>%
+    slice(idx) %>%
+    select(all_of(names(anno_spec))) %>%
+    setNames(display_names)
   
-  print(anno_cols)
-  
-  # Rename columns to the display names (anno_name)
-  display_names <- vapply(anno_spec, `[[`, character(1), "anno_name")
-  names(anno_cols) <- display_names
-  
-  # Data frame passed to HeatmapAnnotation
-  df <- as.data.frame(anno_cols, check.names = FALSE, stringsAsFactors = FALSE)
-  
-  # Build `col=` mapping: must be named by the *display names* (df colnames)
-  col_list <- setNames(
-    lapply(anno_spec, `[[`, "anno_colors"),
-    display_names
-  )
+  # Make color list for annotations (make sure to match new display names)
+  color_list <- anno_spec %>%
+    lapply(`[[`, "anno_colors") %>%
+    rlang::set_names(display_names)
   
   
   # Annotation legend size paramters (can make argument later)
-  anno_lgd_params <- list(nrow = 2, 
-                          labels_gp = gpar(fontsize = 12), 
-                          title_gp = gpar(fontsize = 12, 
-                                          fontface = 'bold'))
+  anno_lgd_params <- list(
+    nrow = 2, 
+    labels_gp = gpar(fontsize = 12), 
+    title_gp = gpar(fontsize = 12, 
+                    fontface = 'bold')
+  )
   
-  df <- cbind(df, df)
-  #colnames(df) <- c('ER1', )
-  print(df)
+  # Build spacer to reduce text cluttering
+  spacer <- anno_empty(border = FALSE, 
+                       height = spacer_gap)
   
-  # Build HeatmapAnnotation object
+  # Build HeatmapAnnotation object with spacer above or below
   if (spacer_below) {
     
     anno <- HeatmapAnnotation(
       df = df,
-      #foo = anno_empty(border = FALSE, 
-      #                 height = unit(0.00001, "points")),
-      col = col_list,
+      spacer = spacer,
+      col = color_list,
       border = border,
       gap = gap,
       show_annotation_name = show_annotation_name,
@@ -564,10 +584,9 @@ sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
   } else {
     
     anno <- HeatmapAnnotation(
-      #foo = anno_empty(border = FALSE, 
-      #                 height = unit(0.00001, "points")),
+      spacer = spacer,
       df = df,
-      col = col_list,
+      col = color_list,
       border = border,
       gap = gap,
       show_annotation_name = show_annotation_name,
@@ -577,7 +596,6 @@ sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
     
   }
     
-  
   return(anno)
   
 }
@@ -598,12 +616,9 @@ sub_assay_heatmap <- function(assay_mats,
                               pre = NULL,
                               fn = NULL,
                               
-                              
-                              # Update/remove these after fixing top/bottom annotation code blocks
-                              make_anno = 'Treatment',
-                              include_ERi = TRUE, 
-                              include_pam50 = TRUE,
-                              annotate_assay_types = FALSE,
+                              # New for annotations (list of specs)
+                              top_anno = NULL,
+                              btm_anno = NULL,
                               
                               # Legend parameters
                               lgdFntSize = 12, 
@@ -638,193 +653,35 @@ sub_assay_heatmap <- function(assay_mats,
     as.character()
   
   
-  # Select all assay matrices for current group and merge
+  # Select all assay matrices for current group and merge for heatmap
   group_mats <- do.call(cbind, assay_mats[ht_samples])
   
-  # TODO: BELOW COULD BE MUCH MROE GENERALIZED
-  #  HOW DOES column_groups WORK IF MULTIPLE SAMPLES EXIST FOR SAME GROUP
-  
+
   # Label groupings for heatmaps
+  # TODO: MAYBE MOVE INTO ANNOTATION FUNCTION IF NOT BEING USED ELSE
   column_groups <- c()
   for (s in ht_samples) { column_groups <- c(column_groups, rep(s, ncol(assay_mats[[s]]))) }
   
+
   
-  print(column_groups)
-  
-  anno_spec <- list(
-    #CDKi = list(anno_name = "CDK4/6i", anno_colors = colors.treatment),
-    ERi  = list(anno_name = "ERi",     anno_colors = colors.treatment)
-    # pam50 = list(anno_name = "PAM50", anno_colors = colors.pam)
-  )
-  
-  anno_spec <- list(
-    #CDKi = list(anno_name = "CDK4/6i", anno_colors = colors.treatment),
-    ERi  = list(anno_name = "ERi",     anno_colors = all_extra_drug_cols)
-    # pam50 = list(anno_name = "PAM50", anno_colors = colors.pam)
-  )
-  
+  # Build top annotations using top_anno_specs
   top_anno <- sub_assay_anno(meta = meta,
                              column_groups = column_groups,
-                             anno_spec = anno_spec)
+                             anno_spec = top_anno,
+                             spacer_below = TRUE,
+                             show_annotation_name = show_annotation_name,
+                             show_annotation_legend = show_annotation_legend)
   
+  # Build bottom annotations using btm_anno_specs
   btm_anno <- sub_assay_anno(meta = meta,
                              column_groups = column_groups,
-                             anno_spec = anno_spec)
+                             anno_spec = btm_anno,
+                             spacer_below = FALSE,
+                             show_annotation_name = show_annotation_name,
+                             show_annotation_legend = show_annotation_legend)
   
   
-  # Biopsies for each column group
-  # WHY IS THIS NEEDED AND BEING USED IN HEATMAP CALL?
-  cols.biop <- as.character(meta[match(column_groups, meta$Sample),'Biopsy'])
-  
-  print(cols.biop)
-  
-  use_old_annos <- FALSE
-  if (use_old_annos) {
-  
-  
-  # Biopsies for each column group
-  cols.biop <- as.character(meta[match(column_groups, meta$Sample),'Biopsy'])
-  
-  # HtanIDs for each column group
-  cols.hta <- as.character(meta[match(column_groups, meta$Sample),'HtanID'])
-  
-  # Treatment for each column group
-  cols.treat <- as.character(meta[match(column_groups, meta$Sample),'Treatment'])
-  
-  # ER therapy
-  cols.er <- as.character(meta[match(column_groups, meta$Sample),'ERi'])
-  
-  # PAM50 (change)
-  cols.pam <- as.character(meta[match(column_groups, meta$Sample),'pamChange'])
-  
-  # Patient response for each column group
-  cols.intrinsic <- as.character(meta[match(column_groups, meta$Sample),'PatientResponse'])
-  
-  # onProgression for each column group
-  cols.prog <- as.character(meta[match(column_groups, meta$Sample),'ProgressionStage'])
-  
-  # Patient
-  cols.pat <- as.character(meta[match(column_groups, meta$Sample),'HTAN'])
-  
-  # Treatment legend that also indicates on-progression biopsies
-  onProg.idx <- rep(NA, length(cols.prog))
-  onProg.idx[which(cols.prog == 'OnProgression')] <- 8
-  
-  
-  print(cols.treat)
-  print(cols.er)
-  cat('\n')
-  cat('\n')
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  # Annotation legend size paramters
-  anno_lgd_params <- list(nrow = 2, 
-                          labels_gp = gpar(fontsize = 12), 
-                          title_gp = gpar(fontsize = 12, 
-                                          fontface = 'bold'))
-  
-  if (make_anno == 'Treatment') {
-    
-    all_drug_cols <- all_drug_cols
-    names(all_drug_cols) <- str_to_title(names(all_drug_cols))
-    all_extra_drug_cols <- all_extra_drug_cols
-    names(all_extra_drug_cols) <- str_to_title(names(all_extra_drug_cols))
-    
-    cols.treat <- str_to_title(cols.treat)
-    cols.er <- str_to_title(cols.er)
-    
-    if (include_ERi) {
-      
-      top_anno <- HeatmapAnnotation('CDK4/6i' = cols.treat,
-                                    'ERi' = cols.er,
-                                    foo = anno_empty(border = FALSE, 
-                                                     height = unit(0.00001, 'points')),
-                                    col = list('CDK4/6i' = all_drug_cols,
-                                               'ERi' = all_extra_drug_cols), 
-                                    border = TRUE, 
-                                    show_annotation_name = show_annotation_name,
-                                    gap = unit(3, 'points'),
-                                    show_legend = show_annotation_legend,
-                                    annotation_legend_param = anno_lgd_params)
-      
-    } else {
-      
-      top_anno <- HeatmapAnnotation('CDK4/6i' = cols.treat,
-                                    foo = anno_empty(border = FALSE, 
-                                                     height = unit(0.00001, 'points')),
-                                    col = list('CDK4/6i' = all_drug_cols), 
-                                    border = TRUE, 
-                                    show_annotation_name = show_annotation_name,
-                                    gap = unit(3, 'points'),
-                                    show_legend = show_annotation_legend,
-                                    annotation_legend_param = anno_lgd_params)
-      
-    }
-    
-  } else if (make_anno == 'PatientResponse') {
-    
-    top_anno <- HeatmapAnnotation(PatientResponse = cols.intrinsic,
-                                  col = list(PatientResponse = intrinsic_cols), 
-                                  show_legend = show_annotation_legend,
-                                  border = TRUE, 
-                                  show_annotation_name = show_annotation_name,
-                                  annotation_legend_param = anno_lgd_params)
-    
-  } else {
-    
-    top_anno <- FALSE
-    
-  }
-  
-  # Color annotate assay types
-  if (annotate_assay_types) {
-    
-    btm_anno <- HeatmapAnnotation(' ' = anno_empty(border = FALSE, 
-                                                   height = unit(0.00001, 'points')),
-                                  'PAM50' = cols.pam,
-                                  Assay = colnames(group_mats), 
-                                  col = list(Assay = assay_cols,
-                                             'PAM50' = pam_change_colors),
-                                  show_annotation_name = show_annotation_name, 
-                                  border = TRUE,
-                                  show_legend = show_annotation_legend,
-                                  gap = unit(3, 'points'),
-                                  annotation_legend_param = anno_lgd_params)
-    
-  } else {
-    
-    if (include_pam50) {
-      
-      btm_anno <- HeatmapAnnotation(' ' = anno_empty(border = FALSE, 
-                                                     height = unit(0.00001, 'points')),
-                                    'PAM50' = cols.pam,
-                                    col = list(Assay = assay_cols,
-                                               'PAM50' = pam_change_colors),
-                                    show_annotation_name = show_annotation_name, 
-                                    border = TRUE,
-                                    show_legend = show_annotation_legend,
-                                    gap = unit(3, 'points'),
-                                    annotation_legend_param = anno_lgd_params)
-      
-    } else {
-      
-      btm_anno <- NULL
-      
-    }
-    
-  }
-  
-  }
-  
-  
-  print(head(group_mats))
+ 
   
   # Order genes by mean across assays
   if (group_order) {
@@ -858,28 +715,34 @@ sub_assay_heatmap <- function(assay_mats,
   
   # Build current heatmap object
   ht <- Heatmap(group_mats, 
-                name = value.var, 
+                
+                # Column features
+                top_annotation = top_anno, 
+                bottom_annotation = btm_anno,
                 cluster_columns = FALSE, 
-                column_split = cols.biop, 
-                column_gap = unit(0, "mm"),
                 column_title = ht_group, 
+                column_names_rot = 45,
+                
+                # Row features
                 cluster_rows = cluster_rows, 
                 row_title_rot = row_title_rot, 
                 row_split = row_split, 
                 row_gap = row_gap,
+                
+                # Heatmap size
                 width = ht_width, 
                 height = ht_height, 
                 border = TRUE, 
-                top_annotation = top_anno, 
-                bottom_annotation = btm_anno,
+                
+                # Legend
+                name = value.var,
+                col = col_fun, 
                 heatmap_legend_param = list(direction = 'horizontal', 
                                             title_gp = gpar(fontsize = lgdFntSize, 
                                                             fontface = "bold"), 
                                             labels_gp = gpar(fontsize = lgdFntSize), 
                                             legend_width = unit(ht_lgd_length, 'in'), 
-                                            title_position = 'topcenter'),
-                col = col_fun, 
-                column_names_rot = 45
+                                            title_position = 'topcenter')
   )
   
   
@@ -936,10 +799,9 @@ multi_assay_heatmap <- function(assay_mats,
                                 show_annotation_legend = TRUE,
                                 annotate_assay_types = TRUE, 
                                 
-                                # Remove/update these after fixing annotation code blocks
-                                make_anno = 'Treatment',
-                                include_ERi = TRUE, 
-                                include_pam50 = TRUE,
+                                # New for annotations (list of specs)
+                                top_anno = NULL,
+                                btm_anno = NULL,
                                 
                                 # Legend parameters
                                 lgdFntSize = 12, 
@@ -985,7 +847,6 @@ multi_assay_heatmap <- function(assay_mats,
       filter(.data[[assay_mat_sample_column]] %in% select_samples) %>%
       pull(.data[[group_heatmaps_by]]) %>%
       unique() %>%
-      sort() %>% # sorting by levels (change?)
       as.character()
     
   } else {
@@ -993,9 +854,11 @@ multi_assay_heatmap <- function(assay_mats,
     select_groups <- meta %>%
       filter(.data[[assay_mat_sample_column]] %in% select_samples) %>%
       filter(.data[[group_heatmaps_by]] %in% select_groups) %>%
+      mutate(!!group_heatmaps_by := factor(.data[[group_heatmaps_by]], 
+                                           levels = select_groups)) %>%
       pull(.data[[group_heatmaps_by]]) %>%
       unique() %>%
-      sort() %>% # sorting by levels (change?)
+      sort() %>%
       as.character()
     
   }
@@ -1004,8 +867,7 @@ multi_assay_heatmap <- function(assay_mats,
   meta <- meta %>% 
     filter(.data[[assay_mat_sample_column]] %in% select_samples) %>%
     filter(.data[[group_heatmaps_by]] %in% select_groups)
-  
-  
+
   
   # TODO: Update ht_height and ht_width to use cell sizes for different grouping options
   
@@ -1022,11 +884,23 @@ multi_assay_heatmap <- function(assay_mats,
     
   }
   
+  # Set heatmap color function
+  if (is.null(col_fun)) {
+    
+    col_fun <- make_heatmap_colors(NULL, minHt = -2, maxHt = 2)
+   
+  }
+  
+  
   # Cluster rows
   if (is.logical(cluster_rows)) {
+    
     if (cluster_rows == TRUE) {
+      
       cluster_rows <- create_dendrogram(do.call(cbind, assay_mats))
+      
     }
+    
   }
   
   # Get all genes/proteins across assay matrices
@@ -1094,10 +968,9 @@ multi_assay_heatmap <- function(assay_mats,
   
   # Build heatmaps from left to right
   merge_ht <- NULL
-  
   for (i in 1:length(select_groups)) {
     
-    #p <- select_groups[i]
+    # Get current group
     ht_group <- select_groups[i]
     
     # Place top/bottom annotation names on right most heatmap
@@ -1112,248 +985,25 @@ multi_assay_heatmap <- function(assay_mats,
     }
     
     
-    
-    use_old <- FALSE
-    if (use_old) {
-    
-    # Get available samples/assays for patient
-    select_samples <- intersect(meta[meta[,group_heatmaps_by] == p,'Sample'],names(assay_mats))
-    
-    
-    
-    # Merge matrices
-    assay_mat.patient <- do.call(cbind, assay_mats[select_samples])
-    
-    
-    
-    
-    # Label groupings for heatmaps
-    column_groups <- c()
-    for (s in select_samples) { column_groups <- c(column_groups, rep(s, ncol(assay_mats[[s]]))) }
-    
-    
-    
-    # Biopsies for each column group
-    cols.biop <- as.character(meta[match(column_groups, meta$Sample),'Biopsy'])
-    
-    # HtanIDs for each column group
-    cols.hta <- as.character(meta[match(column_groups, meta$Sample),'HtanID'])
-    
-    # Treatment for each column group
-    cols.treat <- as.character(meta[match(column_groups, meta$Sample),'Treatment'])
-    
-    # ER therapy
-    cols.er <- as.character(meta[match(column_groups, meta$Sample),'ERi'])
-    
-    # PAM50 (change)
-    cols.pam <- as.character(meta[match(column_groups, meta$Sample),'pamChange'])
-    
-    # Patient response for each column group
-    cols.intrinsic <- as.character(meta[match(column_groups, meta$Sample),'PatientResponse'])
-    
-    # onProgression for each column group
-    cols.prog <- as.character(meta[match(column_groups, meta$Sample),'ProgressionStage'])
-    
-    # Patient
-    cols.pat <- as.character(meta[match(column_groups, meta$Sample),'HTAN'])
-    
-    # Treatment legend that also indicates on-progression biopsies
-    onProg.idx <- rep(NA, length(cols.prog))
-    onProg.idx[which(cols.prog == 'OnProgression')] <- 8
-    
-    
-    # Annotation legend size paramters
-    anno_lgd_params <- list(nrow = 2, 
-                            labels_gp = gpar(fontsize = 12), 
-                            title_gp = gpar(fontsize = 12, 
-                                            fontface = 'bold'))
-    
-    if (make_anno == 'Treatment') {
-      
-      all_drug_cols <- all_drug_cols
-      names(all_drug_cols) <- str_to_title(names(all_drug_cols))
-      all_extra_drug_cols <- all_extra_drug_cols
-      names(all_extra_drug_cols) <- str_to_title(names(all_extra_drug_cols))
-      
-      cols.treat <- str_to_title(cols.treat)
-      cols.er <- str_to_title(cols.er)
-      
-      if (include_ERi) {
-        
-        top_anno <- HeatmapAnnotation('CDK4/6i' = cols.treat,
-                                      'ERi' = cols.er,
-                                      foo = anno_empty(border = FALSE, height = unit(0.00001, 'points')),
-                                      col = list('CDK4/6i' = all_drug_cols,
-                                                 'ERi' = all_extra_drug_cols), 
-                                      border = TRUE, show_annotation_name = show_annotation_name,
-                                      gap = unit(3, 'points'),
-                                      show_legend = show_annotation_legend,
-                                      annotation_legend_param = anno_lgd_params)
-        
-      } else {
-        
-        top_anno <- HeatmapAnnotation('CDK4/6i' = cols.treat,
-                                      foo = anno_empty(border = FALSE, height = unit(0.00001, 'points')),
-                                      col = list('CDK4/6i' = all_drug_cols), 
-                                      border = TRUE, show_annotation_name = show_annotation_name,
-                                      gap = unit(3, 'points'),
-                                      show_legend = show_annotation_legend,
-                                      annotation_legend_param = anno_lgd_params)
-        
-      }
-      
-    } else if (make_anno == 'PatientResponse') {
-      
-      top_anno <- HeatmapAnnotation(PatientResponse = cols.intrinsic,
-                                    col = list(PatientResponse = intrinsic_cols), 
-                                    show_legend = show_annotation_legend,
-                                    border = TRUE, show_annotation_name = show_annotation_name,
-                                    annotation_legend_param = anno_lgd_params)
-      
-    } else {
-      
-      top_anno <- FALSE
-      
-    }
-    
-    # Color annotate assay types
-    if (annotate_assay_types) {
-      
-      btm_anno <- HeatmapAnnotation(' ' = anno_empty(border = FALSE, height = unit(0.00001, 'points')),
-                                    'PAM50' = cols.pam,
-                                    Assay = colnames(assay_mat.patient), 
-                                    col = list(Assay = assay_cols,
-                                               'PAM50' = pam_change_colors),
-                                    show_annotation_name = show_annotation_name, border = TRUE,
-                                    show_legend = show_annotation_legend,
-                                    gap = unit(3, 'points'),
-                                    annotation_legend_param = anno_lgd_params)
-      
-    } else {
-      
-      if (include_pam50) {
-        
-        btm_anno <- HeatmapAnnotation(' ' = anno_empty(border = FALSE, height = unit(0.00001, 'points')),
-                                      'PAM50' = cols.pam,
-                                      col = list(Assay = assay_cols,
-                                                 'PAM50' = pam_change_colors),
-                                      show_annotation_name = show_annotation_name, border = TRUE,
-                                      show_legend = show_annotation_legend,
-                                      gap = unit(3, 'points'),
-                                      annotation_legend_param = anno_lgd_params)
-        
-      } else {
-        
-        btm_anno <- NULL
-        
-      }
-      
-    }
-    
-    
-    # Order genes by mean across assays
-    if (group_order) {
-      
-      assay_mat.patient <- assay_mat.patient[order_rows,]
-      
-    } else {
-      
-      assay_mat.patient <- assay_mat.patient[order(rowMeans(assay_mat.patient,na.rm = TRUE)),]
-      if (!is.null(row_split)) {
-        
-        row_split <- gene_cats[rownames(assay_mat.patient),'Category']
-        
-      }
-      
-    }
-    
-    
-    
-    # Set heatmap color function
-    if (is.null(col_fun)) {
-      
-      # Set color intensities
-      maxHT <- max(c(2, abs(quantile(assay_mat.patient, 0.01, na.rm = TRUE)), 
-                     abs(quantile(assay_mat.patient, 0.99, na.rm = TRUE))))
-      col_fun <- colorRamp2(c(-2,0,2), c("#015D5F",'white','magenta4'))
-      ht_cols = c('cyan', 'black', 'magenta')
-      col_fun <- colorRamp2(c(-2,0,2), ht_cols)
-      
-    }
-    
-    # Build current heatmap object
-    ht <- Heatmap(assay_mat.patient, 
-                  name = value.var, 
-                  cluster_columns = FALSE, 
-                  column_split = cols.biop, 
-                  column_gap = unit(0, "mm"),
-                  column_title = p, 
-                  cluster_rows = cluster_rows, 
-                  row_title_rot = row_title_rot, 
-                  row_split = row_split, 
-                  row_gap = row_gap,
-                  width = ht_width, 
-                  height = ht_height, 
-                  border = TRUE, 
-                  top_annotation = top_anno, 
-                  bottom_annotation = btm_anno,
-                  heatmap_legend_param = list(direction = 'horizontal', 
-                                              title_gp = gpar(fontsize = lgdFntSize, 
-                                                              fontface = "bold"), 
-                                              labels_gp = gpar(fontsize = lgdFntSize), 
-                                              legend_width = unit(ht_lgd_length, 'in'), 
-                                              title_position = 'topcenter'),
-                  col = col_fun, 
-                  column_names_rot = 45
-    )
-    
-    
-    try(dev.off(), silent = TRUE)
-    
-    # Save individual patient plots to file
-    if (patient_plots) {
-      
-      # First create faux plot to capture dimensions of all heatmap objects
-      pdf(NULL)
-      dht <- draw(ht) # Length needs to match number of components (total annotations plus heatmap) unit(c(0.2,0,0.2, 0.0001), "mm")
-      try(dev.off(), silent = TRUE)
-      
-      # Measure object dimensions and determine proper figure size
-      wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
-      
-      # Now save to file
-      fn.ht <- paste0(pre, '/assay_heatmaps/', p, '.', fn, '.heatmap.png')
-      png(filename =  fn.ht, width = wh[1], height = (wh[2]+wh[2]*.03), units = 'in', res = wh[1]*wh[2]*2)
-      draw(ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', merge_legend = TRUE)
-      try(dev.off(), silent = TRUE)
-      
-    }
-    
-    }
-    
-    
-    # Merge heatmaps  
-    #merge_ht <- merge_ht + ht
-    
+    # Add heatmap
     merge_ht <- merge_ht + sub_assay_heatmap(assay_mats = assay_mats, 
                                              meta = meta, 
+                                             
                                              ht_group = ht_group,
-                                             #p = p, 
                                              group_heatmaps_by = group_heatmaps_by, 
                                              assay_mat_sample_column = assay_mat_sample_column,
                                              
+                                             
+                                             top_anno = top_anno,
+                                             btm_anno = btm_anno,
                                              show_annotation_name = show_annotation_name,
                                              show_annotation_legend = show_annotation_legend,
+                                             
+                                             
                                              patient_plots = patient_plots,
                                              pre = pre,
                                              fn = fn,
                                              
-                                             
-                                             # Update/remove these after fixing top/bottom annotation code blocks
-                                             make_anno = make_anno,
-                                             include_ERi = include_ERi, 
-                                             include_pam50 = include_pam50,
-                                             annotate_assay_types = annotate_assay_types,
                                              
                                              # Legend parameters
                                              lgdFntSize = lgdFntSize, 
@@ -1375,8 +1025,7 @@ multi_assay_heatmap <- function(assay_mats,
                                              order_rows = order_rows,
                                              row_split = row_split,
                                              row_gap = row_gap
-                                             
-                                             
+
                                              
                                              )
     
@@ -1403,7 +1052,6 @@ multi_assay_heatmap <- function(assay_mats,
   #png(filename =  paste0(pre, '/assay_heatmaps/', fn, '.heatmap.png'), width = w, height = h, units = 'in', res = res)
   
   ht_filename <- paste0(pre, '/',  fn, '.heatmap.png')
-  print(ht_filename)
   
   png(filename = ht_filename, width = w, height = h, units = 'in', res = res)
   

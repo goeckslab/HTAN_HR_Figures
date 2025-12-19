@@ -469,6 +469,23 @@ assays.test.htan <- merge_assays(meta.htan,
                             Zchange = TRUE)
 
 
+# Top annotations for multi-assay heatmaps
+top_annotations.multiassay.change.htan <- list(
+  CDKi = list(anno_name = "CDK4/6i", 
+              anno_colors = colors.treatment
+  ),
+  ERi  = list(anno_colors = colors.treatment
+  )
+)
+
+# Bottom annotations for multi-assay heatmaps
+btm_annotations.multiassay.change.htan <- list(
+  pamChange = list(anno_name = "PAM50", 
+                   anno_colors = colors.pam
+  )
+)
+
+
 
 multi_assay_heatmap(assays.test.htan, 
                     meta.htan, 
@@ -478,8 +495,11 @@ multi_assay_heatmap(assays.test.htan,
                     
                     
                     # Use to select how heatmaps are grouped (default "Sample", but "BiopsyChange.Drug" for paired delta values)
-                    #group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
-                    group_heatmaps_by = 'pamChange', # Default: Sample
+                    group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
+                    #group_heatmaps_by = 'pamChange', # Default: Sample
+                    
+                    top_anno = top_annotations.multiassay.change.htan,
+                    btm_anno = btm_annotations.multiassay.change.htan,
                     
                     
                     # Contains merged names?
@@ -494,8 +514,6 @@ multi_assay_heatmap(assays.test.htan,
                     
                     
                     add_width = .6,
-                    #ht_width = unit(2.5, 'in'),
-                    #ht_height = unit(16,'in'),
                     ht_width = unit(1.75, 'in'),
                     ht_height = unit(11.2,'in'),
                     annotate_assay_types = FALSE,
