@@ -67,7 +67,7 @@ colors.gsva <- c("Cellular Component" = "#EC579AFF",
                  "Receptor Signaling" = "#15983DFF", 
                  "Signaling" = "purple")
 
-# Intrinsic/extrinsic luster assignment colors
+# Intrinsic/extrinsic cluster assignment colors
 colors.intrinsic <- c('High' = "#E6352FFF",
                       'Low' = "#34A74BFF")
 colors.extrinsic <- c('High' = "#F9B90AFF",
@@ -408,7 +408,7 @@ make_anno_simple <- function(x, meta = NULL, anno = NULL, anno_name = NULL,
   
   # Build heatmap annotation
   as <- anno_simple(x, col = anno_colors, na_col = na_col, 
-                      border = border)
+                    border = border)
   
   # Return as HeatmapAnnotation object
   if (!return_anno_simple) {
@@ -1070,7 +1070,8 @@ make_heatmap_colors <- function(mat, htColors = NULL, numColors = 3, minHt = NUL
 #   Needs meta with date specifying biopsy timepoint
 # TODO: May store in separate library script if more space needed
 compute_paired_change <- function(df, meta, return_matrix = TRUE, 
-                                  select_features = NULL) {
+                                  select_features = NULL,
+                                  select_samples = NULL) {
   
   # Melt to long format
   df <- df %>% 
@@ -1081,7 +1082,19 @@ compute_paired_change <- function(df, meta, return_matrix = TRUE,
   # Subset to select features
   if (!is.null(select_features)) {
     
-    df <- df %>% filter(Feature %in% select_features)
+    df <- df %>% 
+      filter(Feature %in% select_features)
+    
+  }
+  
+  # Subset to select samples
+  if (!is.null(select_samples)) {
+    
+    df <- df %>%
+      filter(Sample %in% select_samples)
+    
+    meta <- meta %>%
+      filter(Sample %in% select_samples)
     
   }
   

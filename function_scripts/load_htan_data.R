@@ -85,4 +85,47 @@ load_ppws <- function(meta, fn = 'protein_pathway_scores.csv', fn.dir = '') {
 }
 
 
+# Function to load gene expression (select categories, pre-scaled to background MMTERT cohort)
+load_gene_expression <- function(meta, fn = 'gene_expression_scaled_categories.csv', fn.dir = '') {
+  
+  # Load expression
+  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
+    select(-Category) %>%
+    data.frame(row.names = 1, check.names = FALSE)
+  df <- df[,meta$Sample]
+  
+  return(df)
+  
+}
+
+# Function to load viper activity (select categories, pre-scaled to background MMTERT cohort)
+load_viper <- function(meta, fn = 'viper_scaled_categories.csv', fn.dir = '') {
+  
+  # Load viper
+  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
+    select(-Category) %>%
+    data.frame(row.names = 1, check.names = FALSE)
+  df <- df[,meta$Sample]
+  
+  return(df)
+  
+}
+
+# Function to load RPPA protein abundace (pre-scaled to background MMTERT cohort)
+load_htan_rppa <- function(meta, fn = 'rppa_scaled.csv', fn.dir = '') {
+  
+  # Load rppa
+  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
+    data.frame(row.names = 1, check.names = FALSE)
+  
+  select_samples <- as.character(meta$Sample[meta$Sample %in% colnames(df)])
+  
+  df <- df[,select_samples]
+  
+  return(df)
+  
+}
+
+
+
 

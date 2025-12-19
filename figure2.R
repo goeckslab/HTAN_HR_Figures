@@ -17,10 +17,10 @@ source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_F
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/heatmap_functions.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/onco_heatmap_functions.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/multi_assay_functions.R')
 
 # Temp: Store test figures here
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures"
-
 
 # To retest outputs
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures2"
@@ -51,13 +51,13 @@ gsva.change.htan <- compute_paired_change(gsva.htan, meta.htan)
 
 
 # Gene expression (RNA-seq)
-
+exp.scaled.htan <- load_gene_expression(meta.htan, fn.dir = source_dir)
 
 # Viper regulator activity (RNA-seq)
-
+viper.scaled.htan <- load_viper(meta.htan, fn.dir = source_dir)
 
 # Protein/phosphoprotein abundance (RPPA)
-
+rppa.scaled.htan <- load_htan_rppa(meta.htan, fn.dir = source_dir)
 
 # Proteomic pathway scores (RPPA)
 ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
@@ -372,23 +372,138 @@ make_heatmap(
 #
 ###########################################################################
 
+
+# Replicating figures created in htan_scripts/htan_rna_integration.R
+
+
 gene_cats.htan
+
+gene_cats.main
 
 
 # TODO: FIX ISSUE OF NOW HAVING "RNA" (RNA-seq) IN META TABLE
 
+# TODO: MAY NEED TO HARD CODE TABLE OF MERGED GENE/PROTEIN/PHOSPHO NAMES
+
 # TODO: Scale or not scale parameters 
-assays.test <- merge_assays(meta.hrplus, 
+assays.test.mmtert <- merge_assays(meta.hrplus, 
                             df.rna = exp.scaled.hrplus, 
                             df.viper = viper.hrplus, 
                             df.rppa = rppa.hrplus,
+                            
+                            scale_rna = FALSE,
+                            scale_viper = TRUE,
+                            scale_rppa = TRUE,
+                            
                             protein_rna_table = protein_rna_tbl, 
-                            select_gene_cats = gene_cats.htan,
-                            select_genes = gene_cats.htan$Gene,
+                            
+                            select_gene_cats = gene_cats.main,
+                            select_genes = gene_cats.main$Gene,
+                            
+                            select_samples = htan.paired.mmtert,
+                            
                             fill_all_assays = TRUE,
                             
                             
                             Zchange = TRUE)
+
+
+
+multi_assay_heatmap(assays.test.mmtert, 
+                    meta.hrplus, 
+                    
+                    pre = results_dir.test,
+                    fn = 'test_merged_assays',
+                    
+                    
+                    # Use to select how heatmaps are grouped (default "Sample", but "BiopsyChange.Drug" for paired delta values)
+                    #group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
+                    group_heatmaps_by = 'pamChange', # Default: Sample
+                    
+                    
+                    # Contains merged names?
+                    #category_table = select_gene_cats.intrinsic,
+                    
+                    # Original gene cats table (no merging)?
+                    #gene_cats = select_gene_cats.intrinsic,
+                    #gene_cats = gene_cats.main,
+                    
+                    protein_rna_tbl = protein_rna_tbl,
+                    sub_sep = c(' '),
+                    
+                    
+                    add_width = .6,
+                    #ht_width = unit(2.5, 'in'),
+                    #ht_height = unit(16,'in'),
+                    ht_width = unit(1.75, 'in'),
+                    ht_height = unit(11.2,'in'),
+                    annotate_assay_types = FALSE,
+                    show_annotation_legend = FALSE,
+                    value.var = 'Zchange')
+
+
+
+
+# TODO: TURN OFF SCALING
+assays.test.htan <- merge_assays(meta.htan, 
+                            df.rna = exp.scaled.htan, 
+                            df.viper = viper.scaled.htan, 
+                            df.rppa = rppa.scaled.htan,
+                            
+                            scale_rna = FALSE,
+                            scale_viper = FALSE,
+                            scale_rppa = FALSE,
+                            
+                            
+                            protein_rna_table = protein_rna_tbl, 
+                            
+                            select_gene_cats = gene_cats.main,
+                            select_genes = gene_cats.main$Gene,
+                            
+                            select_samples = htan.paired,
+                            patient_column = 'Patient.Drug',
+                            
+                            fill_all_assays = TRUE,
+                            
+                            
+                            Zchange = TRUE)
+
+
+
+multi_assay_heatmap(assays.test.htan, 
+                    meta.htan, 
+                    
+                    pre = results_dir.test,
+                    fn = 'test_merged_assays',
+                    
+                    
+                    # Use to select how heatmaps are grouped (default "Sample", but "BiopsyChange.Drug" for paired delta values)
+                    #group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
+                    group_heatmaps_by = 'pamChange', # Default: Sample
+                    
+                    
+                    # Contains merged names?
+                    #category_table = select_gene_cats.intrinsic,
+                    
+                    # Original gene cats table (no merging)?
+                    #gene_cats = select_gene_cats.intrinsic,
+                    #gene_cats = gene_cats.main,
+                    
+                    protein_rna_tbl = protein_rna_tbl,
+                    sub_sep = c(' '),
+                    
+                    
+                    add_width = .6,
+                    #ht_width = unit(2.5, 'in'),
+                    #ht_height = unit(16,'in'),
+                    ht_width = unit(1.75, 'in'),
+                    ht_height = unit(11.2,'in'),
+                    annotate_assay_types = FALSE,
+                    show_annotation_legend = FALSE,
+                    value.var = 'Zchange')
+
+
+
 
 ###########################################################################
 #
