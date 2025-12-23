@@ -498,6 +498,8 @@ multi_assay_heatmap(assays.test.htan,
                     group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
                     #group_heatmaps_by = 'pamChange', # Default: Sample
                     
+                    
+                    
                     top_anno = top_annotations.multiassay.change.htan,
                     btm_anno = btm_annotations.multiassay.change.htan,
                     
@@ -507,7 +509,7 @@ multi_assay_heatmap(assays.test.htan,
                     
                     # Original gene cats table (no merging)?
                     #gene_cats = select_gene_cats.intrinsic,
-                    #gene_cats = gene_cats.main,
+                    gene_cats = gene_cats.main,
                     
                     protein_rna_tbl = protein_rna_tbl,
                     sub_sep = c(' '),

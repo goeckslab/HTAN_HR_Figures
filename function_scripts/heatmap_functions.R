@@ -879,7 +879,7 @@ box_samples <- function(mat, samples, htName, dend, box_col = 'white',
     idx <- which(colnames(mat) %in% samples)
     
   }
-  print(idx)
+  
   rBound <- idx / ncol(mat)
   lBound <- rBound - (1/ncol(mat))
   
@@ -945,14 +945,24 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), res = NULL
   if (is.null(ht)) {ht <- Heatmap(matrix(0, nrow = 0, ncol = 1))}
   
   # Pack list of legends
-  pd <- packLegend(list = lgd, direction = lgd_direction,
-                   max_width = max_width, gap = lgd_gap)
+  if (!is.null(lgd)) {
+    
+    pd <- packLegend(list = lgd, direction = lgd_direction,
+                     max_width = max_width, gap = lgd_gap)
+    
+  } else {
+    
+    pd <- NULL
+    
+  }
   
   # Draw dummy plot to determine figure size
   pdf(NULL)
-  dht <- draw(ht, heatmap_legend_side = 'bottom', 
+  dht <- draw(ht, 
+              heatmap_legend_side = 'bottom', 
               annotation_legend_side = 'bottom', 
-              annotation_legend_list = pd, ht_gap = ht_gap)
+              annotation_legend_list = pd, 
+              ht_gap = ht_gap)
   wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
   try(dev.off(), silent = TRUE)
   
@@ -968,12 +978,14 @@ save_htan_heatmap <- function(ht_objects, fn, ht_gap = unit(4, "mm"), res = NULL
   # Save as png
   png(filename = fn, width = w, height = h, units = 'in', 
       res = res, pointsize = pointsize)
-  draw(ht, annotation_legend_list = pd, ht_gap = ht_gap, 
+  draw(ht, 
+       annotation_legend_list = pd, 
+       ht_gap = ht_gap, 
        heatmap_legend_side = 'bottom', 
        annotation_legend_side = 'bottom')
   
   # Create box around select samples if specified
-  if (!(is.null(mark_samples))) {
+  if (!is.null(mark_samples)) {
     
     box_samples(mat, mark_samples, 'heat', col_dend, 
                 order_columns = order_columns,
@@ -1308,9 +1320,7 @@ make_heatmap <- function(mat,
     
     # Update matrix for heatmap
     mat <- mat.change[rownames(mat),select_samples,drop=FALSE]
-    
-    #print(head(mat))
-    
+
   } else {
     
     # Subset matrix to select samples
@@ -1324,12 +1334,16 @@ make_heatmap <- function(mat,
     if (!is.null(top_anno)) {
       
       top_anno[[1]] <- make_barplot_annotation(meta, bar_anno,
-                                               labs = bar_labs, ylim = bar_ylim) %v% top_anno[[1]]
+                                               labs = bar_labs, 
+                                               ylim = bar_ylim) %v% 
+        top_anno[[1]]
       
     } else {
       
       top_anno <- list(make_barplot_annotation(meta, bar_anno,
-                                               labs = bar_labs, ylim = bar_ylim), NULL)
+                                               labs = bar_labs, 
+                                               ylim = bar_ylim), 
+                       NULL)
       
     }
     

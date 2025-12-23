@@ -521,7 +521,10 @@ get_display_names <- function(anno_spec) {
 }
 
 
-sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
+sub_assay_anno <- function(assay_mats,
+                           meta, 
+                           ht_samples, 
+                           anno_spec = NULL,
                            assay_mat_sample_column = 'Sample',
                            border = TRUE, gap = unit(3, "points"),
                            show_annotation_name = FALSE,
@@ -536,8 +539,11 @@ sub_assay_anno <- function(meta, column_groups, anno_spec = NULL,
     
   }
   
+  # For each sample in group, mulitply by number of coloumns in assay mat for that sample
+  column_samples <- rep(ht_samples, vapply(assay_mats[ht_samples], ncol, integer(1)))
+  
   # Fill with meta values for each instance of each sample in group
-  idx <- match(column_groups, meta[,assay_mat_sample_column])
+  idx <- match(column_samples, meta[,assay_mat_sample_column])
   
   # Rename columns to the display names (anno_name); if missing, use the outer name
   display_names <- get_display_names(anno_spec)
@@ -612,7 +618,7 @@ sub_assay_heatmap <- function(assay_mats,
                               
                               show_annotation_name = FALSE,
                               show_annotation_legend = TRUE,
-                              patient_plots = FALSE,
+                              plot_each_group = FALSE,
                               pre = NULL,
                               fn = NULL,
                               
@@ -633,6 +639,8 @@ sub_assay_heatmap <- function(assay_mats,
                               # Heatmap dimensions
                               ht_height = unit(17, 'in'), 
                               ht_width = unit(3, 'in'),
+                              add_height = 0,
+                              add_width = 0,
                               
                               
                               # Not sure if all of these will be needed
@@ -656,25 +664,19 @@ sub_assay_heatmap <- function(assay_mats,
   # Select all assay matrices for current group and merge for heatmap
   group_mats <- do.call(cbind, assay_mats[ht_samples])
   
-
-  # Label groupings for heatmaps
-  # TODO: MAYBE MOVE INTO ANNOTATION FUNCTION IF NOT BEING USED ELSE
-  column_groups <- c()
-  for (s in ht_samples) { column_groups <- c(column_groups, rep(s, ncol(assay_mats[[s]]))) }
-  
-
-  
   # Build top annotations using top_anno_specs
-  top_anno <- sub_assay_anno(meta = meta,
-                             column_groups = column_groups,
+  top_anno <- sub_assay_anno(assay_mats = assay_mats, 
+                             meta = meta,
+                             ht_samples = ht_samples,
                              anno_spec = top_anno,
                              spacer_below = TRUE,
                              show_annotation_name = show_annotation_name,
                              show_annotation_legend = show_annotation_legend)
   
   # Build bottom annotations using btm_anno_specs
-  btm_anno <- sub_assay_anno(meta = meta,
-                             column_groups = column_groups,
+  btm_anno <- sub_assay_anno(assay_mats = assay_mats, 
+                             meta = meta,
+                             ht_samples = ht_samples,
                              anno_spec = btm_anno,
                              spacer_below = FALSE,
                              show_annotation_name = show_annotation_name,
@@ -700,18 +702,7 @@ sub_assay_heatmap <- function(assay_mats,
   }
   
   
-  
-  # Set heatmap color function
-  if (is.null(col_fun)) {
-    
-    # Set color intensities
-    maxHT <- max(c(2, abs(quantile(group_mats, 0.01, na.rm = TRUE)), 
-                   abs(quantile(group_mats, 0.99, na.rm = TRUE))))
-    col_fun <- colorRamp2(c(-2,0,2), c("#015D5F",'white','magenta4'))
-    ht_cols = c('cyan', 'black', 'magenta')
-    col_fun <- colorRamp2(c(-2,0,2), ht_cols)
-    
-  }
+
   
   # Build current heatmap object
   ht <- Heatmap(group_mats, 
@@ -746,24 +737,23 @@ sub_assay_heatmap <- function(assay_mats,
   )
   
   
-  try(dev.off(), silent = TRUE)
-  
   # Save individual patient plots to file
-  if (patient_plots) {
+  if (plot_each_group) {
     
-    # First create faux plot to capture dimensions of all heatmap objects
-    pdf(NULL)
-    dht <- draw(ht) # Length needs to match number of components (total annotations plus heatmap) unit(c(0.2,0,0.2, 0.0001), "mm")
-    try(dev.off(), silent = TRUE)
+    # Make group filename (make sure group string is valid for filenaming)
+    fn.ht <- paste0(pre, '/',  make.names(ht_group), '.', fn, '.heatmap.png')
     
-    # Measure object dimensions and determine proper figure size
-    wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
-    
-    # Now save to file
-    fn.ht <- paste0(pre, '/assay_heatmaps/', ht_group, '.', fn, '.heatmap.png')
-    png(filename =  fn.ht, width = wh[1], height = (wh[2]+wh[2]*.03), units = 'in', res = wh[1]*wh[2]*2)
-    draw(ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', merge_legend = TRUE)
-    try(dev.off(), silent = TRUE)
+    # Save as png
+    save_htan_heatmap(ht_objects = list(ht, 
+                                        NULL), 
+                      fn = fn.ht, 
+                      ht_gap = unit(2, "mm"), # default is 2mm?
+                      
+                      add_height = add_height, 
+                      add_width = add_width,
+                      
+                      extend_w = 0 # 1.5 used for make_heatmap()
+                      )
     
   }
   
@@ -785,7 +775,7 @@ multi_assay_heatmap <- function(assay_mats,
                                 select_groups = NULL, 
                                 
                                 patientID = 'HTAN', 
-                                patient_plots = FALSE, 
+                                plot_each_group = FALSE, 
                                 
                                 # Features and feature tables
                                 order_rows = NULL,
@@ -986,78 +976,67 @@ multi_assay_heatmap <- function(assay_mats,
     
     
     # Add heatmap
-    merge_ht <- merge_ht + sub_assay_heatmap(assay_mats = assay_mats, 
-                                             meta = meta, 
-                                             
-                                             ht_group = ht_group,
-                                             group_heatmaps_by = group_heatmaps_by, 
-                                             assay_mat_sample_column = assay_mat_sample_column,
-                                             
-                                             
-                                             top_anno = top_anno,
-                                             btm_anno = btm_anno,
-                                             show_annotation_name = show_annotation_name,
-                                             show_annotation_legend = show_annotation_legend,
-                                             
-                                             
-                                             patient_plots = patient_plots,
-                                             pre = pre,
-                                             fn = fn,
-                                             
-                                             
-                                             # Legend parameters
-                                             lgdFntSize = lgdFntSize, 
-                                             ht_lgd_length = ht_lgd_length,
-                                             value.var = value.var,
-                                             
-                                             # Heatmap parameters 
-                                             cluster_rows = cluster_rows, 
-                                             col_fun = col_fun,
-                                             row_title_rot = row_title_rot,
-                                             
-                                             # Heatmap dimensions
-                                             ht_height = ht_height, 
-                                             ht_width = ht_width,
-                                             
-                                             
-                                             # Not sure if all of these will be needed
-                                             group_order = group_order,
-                                             order_rows = order_rows,
-                                             row_split = row_split,
-                                             row_gap = row_gap
-
-                                             
-                                             )
+    merge_ht <- merge_ht + 
+      sub_assay_heatmap(assay_mats = assay_mats, 
+                        meta = meta, 
+                        
+                        ht_group = ht_group,
+                        group_heatmaps_by = group_heatmaps_by, 
+                        assay_mat_sample_column = assay_mat_sample_column,
+                        
+                        
+                        top_anno = top_anno,
+                        btm_anno = btm_anno,
+                        show_annotation_name = show_annotation_name,
+                        show_annotation_legend = show_annotation_legend,
+                        
+                        
+                        plot_each_group = plot_each_group,
+                        pre = pre,
+                        fn = fn,
+                        
+                        
+                        # Legend parameters
+                        lgdFntSize = lgdFntSize, 
+                        ht_lgd_length = ht_lgd_length,
+                        value.var = value.var,
+                        
+                        # Heatmap parameters 
+                        cluster_rows = cluster_rows, 
+                        col_fun = col_fun,
+                        row_title_rot = row_title_rot,
+                        
+                        # Heatmap dimensions
+                        ht_height = ht_height, 
+                        ht_width = ht_width,
+                        add_height = add_height,
+                        add_width = add_width,
+                        
+                        # Not sure if all of these will be needed
+                        group_order = group_order,
+                        order_rows = order_rows,
+                        row_split = row_split,
+                        row_gap = row_gap
+      )
     
   }
   
-  try(dev.off(), silent = TRUE)
+  # Filename
+  fn.ht <- paste0(pre, '/',  fn, '.heatmap.png')
   
-  # First create faux plot to capture dimensions of all heatmap objects
-  pdf(NULL)
-  dht <- draw(merge_ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', merge_legend = TRUE) 
-  try(dev.off(), silent = TRUE)
-  
-  # Measure object dimensions and determine proper figure size
-  wh <- calc_ht_size(dht) # wh[1] = width, wh[2] = height
-  w <- wh[1]
-  h <- wh[2]
-  if (is.null(res)) {res <- wh[1]*wh[2]*2}
-  
-  # Add extra width/height if heatmap is being cropped
-  w <- w + add_width
-  h <- h + add_height
-  
-  # Now save to file
-  #png(filename =  paste0(pre, '/assay_heatmaps/', fn, '.heatmap.png'), width = w, height = h, units = 'in', res = res)
-  
-  ht_filename <- paste0(pre, '/',  fn, '.heatmap.png')
-  
-  png(filename = ht_filename, width = w, height = h, units = 'in', res = res)
+  # Save merged heatmaps as png
+  save_htan_heatmap(ht_objects = list(merge_ht, NULL), 
+                    fn = fn.ht, 
+                    
+                    ht_gap = unit(2, "mm"), # default is 2mm?
+                    
+                    add_height = add_height, 
+                    add_width = add_width,
+                    extend_w = 0 # 1.5 used for make_heatmap()
+                    
+  )
   
   
-  draw(merge_ht, heatmap_legend_side = 'bottom', annotation_legend_side = 'bottom', merge_legend = TRUE)
-  try(dev.off(), silent = TRUE)
   
   return(merge_ht)
   
