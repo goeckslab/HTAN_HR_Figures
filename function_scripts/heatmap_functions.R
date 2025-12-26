@@ -372,6 +372,7 @@ make_anno_legend <- function(lgd_name, lgd_colors, lgd_rows = 2,
 
 # Function to make anno_simple annotations and return 
 #  either as function or as HeatmapAnnotation object (default)
+#   * Does get used in "rna_figures.R" with merged park code
 make_anno_simple <- function(x, meta = NULL, anno = NULL, anno_name = NULL, 
                              anno_colors = NULL, pallete = 'basel', 
                              na_col = 'grey', border = TRUE,

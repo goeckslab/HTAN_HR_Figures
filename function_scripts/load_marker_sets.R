@@ -485,3 +485,122 @@ ppws.mc <- c("Cell_cycle_progression",
 
 
 
+###############################################################
+#
+#   MULTIASSAY CATEGORIES
+#
+###############################################################
+
+# Merged RNA/Protein/Phosphoprotein Categories (for multi-assay heatmaps)
+
+merged_rna_protein_cats.main <- list(
+  
+  G0 = c(
+    "CDKN1A/P21",
+    "CDKN1B/P27_pT157",
+    "CDKN1B/P27_pT198",
+    "RB1/RB_pS807S811"
+  ),
+  
+  G1 = c(
+    "CCND1",
+    "CCND3",
+    "CDK4",
+    "CDK6"
+  ),
+  
+  `G1/S` = c(
+    "BRD4",
+    "CCNE1",
+    "CDK2",
+    "E2F1",
+    "E2F2",
+    "PCNA"
+  ),
+  
+  `G2/M` = c(
+    "AURKA_pT288_pT232_pT198",
+    "CCNB1",
+    "CDC25C",
+    "CDK1/pT14",
+    "CDK1/pY15",
+    "CDK7",
+    "PLK1"
+  ),
+  
+  `G2/M CHECKPOINT` = c(
+    "ATM/pS1981",
+    "ATR/pS428",
+    "CHK1_pS296",
+    "CHK1_pS345",
+    "CHK2_pT68",
+    "HIST1H3A/Histone-H3_pS10",
+    "RPA2/RPA32_pS4_S8",
+    "WEE1/pS642"
+  ),
+  
+  Immune = c(
+    "CD276/B7-H3",
+    "CD38",
+    "CD4",
+    "CD68",
+    "GZMB",
+    "HLA-DRA/HLA-DR-DP-DQ-DX",
+    "IDO1/IDO",
+    "IRF1",
+    "IRF3/pS396",
+    "LCK",
+    "PD-1/PDCD1",
+    "PD-L1",
+    "TNFRSF4/CD134",
+    "VTCN1/B7-H4",
+    "ZAP70"
+  ),
+  
+  `JAK/STAT` = c(
+    "IL6",
+    "JAK2",
+    "MUC1/EMA",
+    "PTPRC/CD45",
+    "STAT1/pY701",
+    "STAT3/pY705",
+    "STAT5A"
+  ),
+  
+  mTORC1 = c(
+    "AKT1S1/PRAS40_pT246",
+    "EEF2K",
+    "EIF4E/pS209",
+    "EIF4EBP1/4EBP1_pS65",
+    "EIF4EBP1/4EBP1_pT37T46",
+    "EIF4EBP1/X4EBP1_pT70",
+    "RPS6/S6_pS235S236",
+    "RPS6KB1/P70S6K1_pT389",
+    "RPTOR/RAPTOR"
+  ),
+  
+  mTORC2 = c(
+    "AKT1/AKT_pS473",
+    "NDRG1/pT346",
+    "PRKCA/PKC-a-b-II_pT638_T641",
+    "PRKCA/PKCALPHA_pS657",
+    "RICTOR/pT1135",
+    "SGK1"
+  ),
+  
+  `PI3K/AKT` = c(
+    "AKT1/AKT_pT308",
+    "GSK3A/GSK3ALPHABETA_pS21S9",
+    "GSK3A/GSK3ALPHABETA/GSK3_pS9",
+    "MTOR/pS2448",
+    "PDPK1/PDK1_pS241",
+    "PIK3CA/PI3KP110ALPHA",
+    "PTEN",
+    "TSC1",
+    "TSC2/TUBERIN_pT1462"
+  )
+  
+)
+
+
+merged_rna_protein_cats.main <- make_category_table(merged_rna_protein_cats.main, 'MergedName')

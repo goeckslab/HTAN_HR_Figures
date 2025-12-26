@@ -446,27 +446,27 @@ multi_assay_heatmap(assays.test.mmtert,
 
 # TODO: TURN OFF SCALING
 assays.test.htan <- merge_assays(meta.htan, 
-                            df.rna = exp.scaled.htan, 
-                            df.viper = viper.scaled.htan, 
-                            df.rppa = rppa.scaled.htan,
-                            
-                            scale_rna = FALSE,
-                            scale_viper = FALSE,
-                            scale_rppa = FALSE,
-                            
-                            
-                            protein_rna_table = protein_rna_tbl, 
-                            
-                            select_gene_cats = gene_cats.main,
-                            select_genes = gene_cats.main$Gene,
-                            
-                            select_samples = htan.paired,
-                            patient_column = 'Patient.Drug',
-                            
-                            fill_all_assays = TRUE,
-                            
-                            
-                            Zchange = TRUE)
+                                 df.rna = exp.scaled.htan, 
+                                 df.viper = viper.scaled.htan, 
+                                 df.rppa = rppa.scaled.htan,
+                                 
+                                 scale_rna = FALSE,
+                                 scale_viper = FALSE,
+                                 scale_rppa = FALSE,
+                                 
+                                 
+                                 protein_rna_table = protein_rna_tbl, 
+                                 
+                                 select_gene_cats = gene_cats.main,
+                                 select_genes = gene_cats.main$Gene,
+                                 
+                                 select_samples = htan.paired,
+                                 patient_column = 'Patient.Drug',
+                                 
+                                 fill_all_assays = TRUE,
+                                 
+                                 
+                                 Zchange = TRUE)
 
 
 # Top annotations for multi-assay heatmaps
@@ -484,6 +484,7 @@ btm_annotations.multiassay.change.htan <- list(
                    anno_colors = colors.pam
   )
 )
+
 
 
 
@@ -506,6 +507,8 @@ multi_assay_heatmap(assays.test.htan,
                     
                     # Contains merged names?
                     #category_table = select_gene_cats.intrinsic,
+                    # TMP TEST
+                    category_table = merged_names_cats.intrinsic.filtered,
                     
                     # Original gene cats table (no merging)?
                     #gene_cats = select_gene_cats.intrinsic,
@@ -533,8 +536,20 @@ multi_assay_heatmap(assays.test.htan,
 ###########################################################################
 
 # Select intrinsic protein pathways to match intrinsic GSVA gene sets
-ppws.intrinsic <- c("Cell_cycle_progression", "G0_G1", "G1_S", "G2_M",
-                        "G2M_Checkpoint", "TSC_mTOR")
+ppws.intrinsic <- c("Cell_cycle_progression", 
+                    "G0_G1", 
+                    "G1_S", 
+                    "G2_M", 
+                    "G2M_Checkpoint", 
+                    "TSC_mTOR")
+
+ppws.mc <- c("Cell_cycle_progression", 
+             "G0_G1", 
+             "G1_S", 
+             "G2_M",
+             "G2M_Checkpoint", 
+             "TSC_mTOR")
+
 
 
 
@@ -546,7 +561,7 @@ make_heatmap(ppws.htan,
              select_samples = htan.paired,
              top_anno = top_annotations.split.htan,  
              btm_anno = btm_annotations.split.htan,
-             category_table = ppw_cats.htan, 
+             category_table = ppw_cats.main, 
              select_features = ppws.intrinsic,
              split_column_by_pheno = 'Patient',
              cluster_columns = FALSE,

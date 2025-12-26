@@ -110,6 +110,62 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 #
 ####################################################################################
 
+# NEW ANNOTATIONS AFTER PERFORMING PARK VALIDATION
+
+# USE BITS OF CODE BELOW
+
+
+# Make G1 arrest barplot annotation function
+g1Anno.merged <- make_barplot_annotation(meta.merged, anno = 'g1Score', return_bar_anno = TRUE)
+
+# TCI delta barplot annotation function
+tcDeltaAnno.merged <- make_barplot_annotation(meta.merged, anno = 'TCIDelta', 
+                                              ylim = c(-2,2),
+                                              return_bar_anno = TRUE)
+
+# MC cluster annotation function
+mcAnno.merged <- make_anno_simple(meta = meta.merged, anno = 'MC Cluster', 
+                                  anno_colors = colors.intrinsic, return_anno_simple = TRUE)
+
+# TIME cluster annotation function
+timeAnno.merged <- make_anno_simple(meta = meta.merged, anno = 'TIME Cluster', 
+                                    anno_colors = colors.extrinsic, return_anno_simple = TRUE)
+
+
+
+
+# Make separate annotation of extrinsic clusters just for MMTERT set
+# TODO: change name
+ct.extrinsic.hrplus <- make_anno_simple(meta.merged[rownames(meta.hrplus),'TIME Cluster'], 
+                                        anno_name = 'TIME Cluster', anno_colors = colors.extrinsic)
+
+
+# USE FOR FIGURE 3A
+
+
+top.celltypes.htan <- list(annotations.hrplus$tciDeltaAnno %v%
+                             ct.extrinsic.hrplus,
+                           list(ct.extrinsic.merged$ctLgd))
+
+
+# Move rest of annotations to bottom of heatmap
+btm.celltypes.htan <- list(annotations.hrplus$onProgAnno %v%
+                             annotations.hrplus$erAnno %v%
+                             annotations.hrplus$intrinsicAnno %v%
+                             annotations.hrplus$pamChangeAnno %v%
+                             annotations.hrplus$htanPointer %v%
+                             annotations.hrplus$biopChangeHTAN,
+                           list(lgds.change$opAstrLgd,
+                                lgds.change$onProgLgd,
+                                lgds.change$intrinsicLgd, # still using? new name?
+                                lgds.change$pamChangeLgd,
+                                lgds.change$cohortLgd))
+
+
+
+
+# USE IMMUNE CELL TYPES INSTEAD OF BELOW
+
 # Extrinsic pathways from Mann-Whitney test (p < 0.1)
 gsva_pws.extrinsic <- c("Activated CD8 T cell", "ALLOGRAFT_REJECTION", "Antigen Presentation", 
                         "COMPLEMENT", "Gamma delta T cell", "iDC", "IL2_STAT5_SIGNALING", 
@@ -126,12 +182,22 @@ ht.fn <- paste(results_dir.test, "gsva_test_heatmap.png", sep = '/')
 make_heatmap(gsva.htan,
              meta.htan,
              select_samples = htan.onProgression,
+             
+             # TODO: SWAP WITH NEW ANNOTATIONS
              top_anno = top_annotations.change.htan,  
              btm_anno = btm_annotations.change.htan,
-             category_table = gsva_cats.htan, 
+             
+             
+             #category_table = gsva_cats.htan, 
+             #select_features = gsva_pws.extrinsic,
+             
+             select_features = pws.celltypes,
+             
              bar_anno = 'CytoChange',
              cluster_columns = TRUE,
-             select_features = gsva_pws.extrinsic,
+             
+             
+             
              show_column_annotation_legend = FALSE,
              heatmap_width = unit(7.5, 'in'),
              heatmap_height = unit(6, 'in'),
