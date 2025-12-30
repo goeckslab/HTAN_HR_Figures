@@ -256,6 +256,23 @@ btm_annotations.split.htan <- list(
 )
 
 
+# Top annotations for multi-assay heatmaps
+top_annotations.multiassay.change.htan <- list(
+  CDKi = list(anno_name = "CDK4/6i", 
+              anno_colors = colors.treatment
+  ),
+  ERi  = list(anno_colors = colors.treatment
+  )
+)
+
+# Bottom annotations for multi-assay heatmaps
+btm_annotations.multiassay.change.htan <- list(
+  pamChange = list(anno_name = "PAM50", 
+                   anno_colors = colors.pam
+  )
+)
+
+
 ############################################################
 #
 #   LOAD TABLES FOR GENE AND PATHWAY SETS
@@ -379,76 +396,8 @@ make_heatmap(
 
 # Replicating figures created in htan_scripts/htan_rna_integration.R
 
+# TODO: RENAME RETURNED MATRICES
 
-gene_cats.htan
-
-gene_cats.main
-
-
-# TODO: FIX ISSUE OF NOW HAVING "RNA" (RNA-seq) IN META TABLE
-
-# TODO: MAY NEED TO HARD CODE TABLE OF MERGED GENE/PROTEIN/PHOSPHO NAMES
-
-# TODO: Scale or not scale parameters 
-assays.test.mmtert <- merge_assays(meta.hrplus, 
-                            df.rna = exp.scaled.hrplus, 
-                            df.viper = viper.hrplus, 
-                            df.rppa = rppa.hrplus,
-                            
-                            scale_rna = FALSE,
-                            scale_viper = TRUE,
-                            scale_rppa = TRUE,
-                            
-                            protein_rna_table = protein_rna_tbl, 
-                            
-                            select_gene_cats = gene_cats.main,
-                            select_genes = gene_cats.main$Gene,
-                            
-                            select_samples = htan.paired.mmtert,
-                            
-                            fill_all_assays = TRUE,
-                            
-                            
-                            Zchange = TRUE)
-
-
-
-multi_assay_heatmap(assays.test.mmtert, 
-                    meta.hrplus, 
-                    
-                    pre = results_dir.test,
-                    fn = 'test_merged_assays',
-                    
-                    
-                    # Use to select how heatmaps are grouped (default "Sample", but "BiopsyChange.Drug" for paired delta values)
-                    #group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
-                    group_heatmaps_by = 'pamChange', # Default: Sample
-                    
-                    
-                    # Contains merged names?
-                    #category_table = select_gene_cats.intrinsic,
-                    
-                    # Original gene cats table (no merging)?
-                    #gene_cats = select_gene_cats.intrinsic,
-                    #gene_cats = gene_cats.main,
-                    
-                    protein_rna_tbl = protein_rna_tbl,
-                    sub_sep = c(' '),
-                    
-                    
-                    add_width = .6,
-                    #ht_width = unit(2.5, 'in'),
-                    #ht_height = unit(16,'in'),
-                    ht_width = unit(1.75, 'in'),
-                    ht_height = unit(11.2,'in'),
-                    annotate_assay_types = FALSE,
-                    show_annotation_legend = FALSE,
-                    value.var = 'Zchange')
-
-
-
-
-# TODO: TEST!!!!!!!!!!
 assays.test.htan <- merge_assays(meta.htan, 
                                  df.rna = exp.scaled.htan, 
                                  df.viper = viper.scaled.htan, 
@@ -475,25 +424,8 @@ assays.test.htan <- merge_assays(meta.htan,
                                  Zchange = TRUE)
 
 
-# Top annotations for multi-assay heatmaps
-top_annotations.multiassay.change.htan <- list(
-  CDKi = list(anno_name = "CDK4/6i", 
-              anno_colors = colors.treatment
-  ),
-  ERi  = list(anno_colors = colors.treatment
-  )
-)
-
-# Bottom annotations for multi-assay heatmaps
-btm_annotations.multiassay.change.htan <- list(
-  pamChange = list(anno_name = "PAM50", 
-                   anno_colors = colors.pam
-  )
-)
 
 
-
-merged_rna_protein_cats.main
 
 
 
@@ -521,21 +453,11 @@ multi_assay_heatmap(assays.test.htan,
                     
                     
                     # Contains merged names?
-                    #category_table = select_gene_cats.intrinsic,
-                    # TMP TEST
-                    #category_table = merged_names_cats.intrinsic.filtered,
-                    
                     category_table = merged_rna_protein_cats.main,
+                    sub_sep = c(' '),
                     
                     # TODO: change parameter name
                     order_rows = merged_rna_protein.intrinsic,
-                    
-                    # Original gene cats table (no merging)?
-                    #gene_cats = select_gene_cats.intrinsic,
-                    #gene_cats = gene_cats.main,
-                    
-                    #protein_rna_tbl = protein_rna_tbl,
-                    sub_sep = c(' '),
                     
                     
                     add_width = .6,
