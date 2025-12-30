@@ -464,8 +464,7 @@ assays.test.htan <- merge_assays(meta.htan,
                                  merged_rna_protein_table = merged_rna_protein_names.htan,
                                  select_merged_names = merged_rna_protein_cats.main$MergedName,
                                  
-                                 #select_gene_cats = gene_cats.main,
-                                 select_genes = gene_cats.main$Gene[1:40],
+                                 #select_genes = gene_cats.main$Gene[1:40],
                                  
                                  select_samples = htan.paired,
                                  patient_column = 'Patient.Drug',
@@ -494,6 +493,15 @@ btm_annotations.multiassay.change.htan <- list(
 
 
 
+merged_rna_protein_cats.main
+
+
+
+merged_rna_protein.intrinsic <- merged_rna_protein_cats.main %>%
+  filter(Category %in% c("G0", "G1", "G1/S", "G2/M", "G2/M CHECKPOINT", #"Immune", "JAK/STAT", 
+                          "mTORC1", "mTORC2", "PI3K/AKT")) %>%
+  pull(MergedName)
+
 
 multi_assay_heatmap(assays.test.htan, 
                     meta.htan, 
@@ -517,11 +525,16 @@ multi_assay_heatmap(assays.test.htan,
                     # TMP TEST
                     #category_table = merged_names_cats.intrinsic.filtered,
                     
+                    category_table = merged_rna_protein_cats.main,
+                    
+                    # TODO: change parameter name
+                    order_rows = merged_rna_protein.intrinsic,
+                    
                     # Original gene cats table (no merging)?
                     #gene_cats = select_gene_cats.intrinsic,
-                    gene_cats = gene_cats.main,
+                    #gene_cats = gene_cats.main,
                     
-                    protein_rna_tbl = protein_rna_tbl,
+                    #protein_rna_tbl = protein_rna_tbl,
                     sub_sep = c(' '),
                     
                     

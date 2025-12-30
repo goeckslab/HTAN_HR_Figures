@@ -970,10 +970,8 @@ multi_assay_heatmap <- function(assay_mats,
                                 plot_each_group = FALSE, 
                                 
                                 # Features and feature tables
-                                order_rows = NULL,
+                                order_rows = NULL, # change to select_features
                                 group_order = TRUE,
-                                gene_cats = NULL, 
-                                protein_rna_tbl = NULL, 
                                 category_table = NULL,
                                 sub_sep = c(' ', '/', '_'),
                                 
@@ -1057,11 +1055,17 @@ multi_assay_heatmap <- function(assay_mats,
   if (is.null(ht_height)) {
     
     if (nrow(assay_mats[[1]]) >= 100) {
+      
       ht_height <- unit(20, 'in')
+      
     } else if (nrow(assay_mats[[1]]) >= 50) {
+      
       ht_height <- unit(17, 'in')
+      
     } else {
+      
       ht_height <- unit(8, 'in')
+      
     }
     
   }
@@ -1101,7 +1105,10 @@ multi_assay_heatmap <- function(assay_mats,
     
   }
   
-  # Split rows by gene set categories
+  
+  
+  
+  # Split rows by gene/protein set categories (must match merged RNA/protein names)
   if (!is.null(category_table)) {
     
     # Format gene/protein categories
@@ -1112,31 +1119,8 @@ multi_assay_heatmap <- function(assay_mats,
       
     }
     
-    rownames(category_table) <- category_table$Gene
+    rownames(category_table) <- category_table$MergedName
     row_split <- category_table[order_rows,'Category']
-    row_gap <- unit(2, 'mm')
-    
-  } else if (!is.null(gene_cats)) {
-    
-    # Format gene/protein categories
-    for (ss in sub_sep) {
-      
-      gene_cats <- gene_cats %>%
-        mutate(Category = gsub(ss, '\n', Category))
-      
-    }
-    
-    # Replace gene names with merged gene/protein/phospho names in gene cats table
-    if (!is.null(protein_rna_tbl)) {
-      
-      gene_cats <- make_merged_rna_protein_categories(assay_mats, 
-                                                      gene_cats, 
-                                                      protein_rna_tbl)
-      
-    } 
-    
-    rownames(gene_cats) <- gene_cats$Gene
-    row_split <- gene_cats[order_rows,'Category']
     row_gap <- unit(2, 'mm')
     
   } else {
@@ -1145,7 +1129,6 @@ multi_assay_heatmap <- function(assay_mats,
     row_gap = NULL
     
   }
-  
   
   
   # Build heatmaps from left to right
@@ -1227,8 +1210,6 @@ multi_assay_heatmap <- function(assay_mats,
                     extend_w = 0 # 1.5 used for make_heatmap()
                     
   )
-  
-  
   
   return(merge_ht)
   

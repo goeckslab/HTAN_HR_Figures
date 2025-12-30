@@ -573,7 +573,7 @@ merged_rna_protein_cats.main <- list(
     "EIF4E/pS209",
     "EIF4EBP1/4EBP1_pS65",
     "EIF4EBP1/4EBP1_pT37T46",
-    "EIF4EBP1/X4EBP1_pT70",
+    #"EIF4EBP1/X4EBP1_pT70",
     "RPS6/S6_pS235S236",
     "RPS6KB1/P70S6K1_pT389",
     "RPTOR/RAPTOR"
@@ -591,7 +591,7 @@ merged_rna_protein_cats.main <- list(
   `PI3K/AKT` = c(
     "AKT1/AKT_pT308",
     "GSK3A/GSK3ALPHABETA_pS21S9",
-    "GSK3A/GSK3ALPHABETA/GSK3_pS9",
+    #"GSK3A/GSK3ALPHABETA/GSK3_pS9",
     "MTOR/pS2448",
     "PDPK1/PDK1_pS241",
     "PIK3CA/PI3KP110ALPHA",
