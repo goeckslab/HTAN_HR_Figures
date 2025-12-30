@@ -152,6 +152,143 @@ merge_rna_protein_table <- function(protein_rna_tbl) {
 }
 
 
+
+# Function to create new merged gene/protein names when integrating 
+#  genes, proteins, and phosphoproteins across assays
+merge_rna_protein_names <- function(protein_rna_tbl, additional_RNA = NULL) {
+  
+  # Add additional genes to table to include in multi assay heatmap
+  if (!is.null(additional_RNA)) {
+    
+    protein_rna_tbl <- tibble(RNA = additional_RNA) %>%
+      full_join(protein_rna_tbl)
+    
+  }
+  
+  # Update name if "Gene" is used instead of "RNA"
+  col.names <- colnames(protein_rna_tbl)
+  if ("Gene" %in% col.names) {
+    
+    protein_rna_tbl <- protein_rna_tbl %>%
+      mutate(RNA = Gene) 
+      
+  }
+  
+  # Set missing RNA to NA
+  protein_rna_tbl <- protein_rna_tbl %>% 
+    mutate(RNA = case_when(RNA == '' ~ NA_character_,
+                           TRUE ~ RNA)) %>%
+    filter(!is.na(RNA)) %>%
+    select(RNA, Protein) %>%
+    distinct()
+  
+  # Split Protein and Phosphoproteins into separate columns
+  protein_only <- protein_rna_tbl %>%
+    filter(!grepl('_p', Protein))
+  
+  phospho_only <- protein_rna_tbl %>%
+    filter(grepl('_p', Protein)) %>%
+    setNames(c('RNA', 'Phospho'))
+  
+  # Merge back together with proteins and phosphoproteins now as separate columns
+  protein_rna_tbl <- protein_only %>%
+    full_join(phospho_only) %>%
+    distinct() %>% 
+    select(RNA, Protein, Phospho) 
+  
+  # Separate phosphoprotein protein names and actual phospho groups
+  protein_rna_tbl <- protein_rna_tbl %>%
+    separate(col = 'Phospho', 
+             into = c('Phospho', 'Phosphogroup'), 
+             sep = '_', 
+             extra = 'merge')
+  
+  # Merge RNA, protein, and phosphoproteins into new name
+  protein_rna_tbl <- protein_rna_tbl %>%
+    
+    mutate(
+      
+      # Clean up names to find matches
+      gene_clean    = gsub("-", "", str_to_lower(RNA)),
+      protein_clean = gsub("-", "", str_to_lower(Protein)),
+      phospho_clean = gsub("-", "", str_to_lower(Phospho)),
+      
+      # Create name
+      FullName = case_when(
+        
+        # Gene + protein, no phospho
+        is.na(Phospho) & !is.na(Protein) &
+          gene_clean == protein_clean ~
+          RNA,
+        
+        is.na(Phospho) & !is.na(Protein) ~
+          paste(RNA, Protein, sep = "/"),
+        
+        # Gene + phospho, no protein
+        is.na(Protein) & !is.na(Phospho) &
+          gene_clean == phospho_clean ~
+          paste(RNA, Phosphogroup, sep = "/"),
+        
+        is.na(Protein) & !is.na(Phospho) ~
+          paste0(RNA, "/", Phospho, "_", Phosphogroup),
+        
+        # Gene only
+        is.na(Protein) & is.na(Phospho) ~
+          RNA,
+        
+        # Gene + protein + phospho
+        gene_clean == protein_clean &
+          gene_clean == phospho_clean ~
+          paste(RNA, Phosphogroup, sep = "/"),
+        
+        protein_clean == phospho_clean ~
+          paste0(RNA, "/", Protein, "_", Phosphogroup),
+        
+        TRUE ~
+          paste0(RNA, "/", Protein, "/", Phospho, "_", Phosphogroup)
+      )
+    ) %>%
+    select(-gene_clean, -protein_clean, -phospho_clean)
+  
+
+  # Manually swap certain names
+  full_name_map <- c(
+    "AURKA/Aurora-A/Aurora-ABC_pT288_pT232_pT198" = "AURKA_pT288_pT232_pT198",
+    "BAK1/BAK" = "BAK1",
+    "CCNB1/CYCLINB1" = "CCNB1",
+    "CCND1/CYCLIND1" = "CCND1",
+    "CCND3/Cyclin-D3" = "CCND3",
+    "CCNE1/CYCLINE1" = "CCNE1",
+    "CHEK1/CHK1_pS296" = "CHK1_pS296",
+    "CHEK1/CHK1_pS345" = "CHK1_pS345",
+    "CHEK2/CHK2_pT68" = "CHK2_pT68",
+    "EIF4EBP1/X4EBP1_pS65" = "EIF4EBP1/4EBP1_pS65",
+    "EIF4EBP1/X4EBP1_pT37T46" = "EIF4EBP1/4EBP1_pT37T46",
+    "GZMB/Granzyme-B" = "GZMB",
+    "PRKCA/PKCALPHA/PKC-a-b-II_pT638_T641" = "PRKCA/PKC-a-b-II_pT638_T641",
+    "RPS6KB1/P70S6K1/P70S6K_pT389" = "RPS6KB1/P70S6K1_pT389",
+    "STAT5A/STAT5ALPHA" = "STAT5A"
+  )
+  
+  protein_rna_tbl <- protein_rna_tbl %>%
+    mutate(
+      FullName = recode(FullName, !!!full_name_map)
+    )
+  
+  # Merge phosphoproteins back to original names
+  protein_rna_tbl <- protein_rna_tbl %>% 
+    mutate(Phospho = case_when(!is.na(Phospho) ~ paste(Phospho, Phosphogroup, sep = '_'),
+                               TRUE ~ Phospho)) %>%
+    select(RNA, Protein, Phospho, FullName) %>%
+    setNames(c('Gene', "Protein", 'Phospho', 'FullName')) %>%
+    arrange(Gene, Protein, Phospho, FullName)
+  
+  return(protein_rna_tbl)
+  
+}
+
+
+
 # Function to subset assay matrix by select samples and features
 # TODO: May move to separate functions script
 subset_assay_data <- function(df, select_samples = NULL, select_features = NULL) {
@@ -221,9 +358,22 @@ merge_assays <- function(meta,
                          scale_rna = FALSE,
                          scale_viper = FALSE,
                          scale_rppa = FALSE,
+                         
+                         # Merge RNA/Protein
+                         merged_rna_protein_table = NULL,
+                         select_merged_names = NULL,
+                         
+                         # If no merged table available, use to make it
                          protein_rna_table = NULL, 
-                         select_gene_cats = NULL,   # IS THERE ACTUALLY A POINT TO select_gene_cats ANYMORE? (maybe for gene/protein name merging?)
+                         
+                        
+                         # Not functional
                          select_genes = NULL,
+                         select_proteins = NULL,
+                         
+                         
+                         full_matches_only = TRUE,
+                         
                          fill_all_assays = FALSE,
                          Zchange = TRUE, 
                          select_samples = NULL,
@@ -234,6 +384,9 @@ merge_assays <- function(meta,
                                            "Viper", 
                                            "Protein", 
                                            "Phospho")) {
+  
+  
+  # ~~~ SAMPLE DATA ~~~ #
   
   # Select columns from meta table and set names
   meta <- meta %>% 
@@ -260,53 +413,98 @@ merge_assays <- function(meta,
   meta <- meta %>% 
     filter(Sample %in% select_samples)
   
-  # Subset assay data
-  # TODO: Handle NULL assays
-  if (is.null(select_genes)) {
+  
+  # ~~~ FEATURE (RNA/PROTEIN) DATA ~~~ #
+  
+  # Check merged RNA/Protein table exists
+  if (is.null(merged_rna_protein_table)) {
     
-    if (is.null(select_gene_cats)) {
+    if (is.null(protein_rna_table)) {
       
-      select_genes <- rownames(df.rna)
+      if (full_matches_only) {
+        
+        stop('Unable to merge RNA and Protein names without mapping table')
+        
+      }
       
     } else {
       
-      select_genes <- select_gene_cats$Gene
+      merged_rna_protein_table <- merge_rna_protein_names(protein_rna_table)
       
     }
     
   }
   
-  # Format Protein to RNA mapping table
-  if (!is.null(protein_rna_table)) {
+  # Reduce to select genes/RNAs
+  if (is.null(select_genes)) {
     
-    protein_rna_table <- protein_rna_table %>%
-      setNames(c('Protein', 'Gene', 'Category')) %>%
-      filter(Gene %in% select_genes,
-             Protein %in% rownames(df.rppa))
+    all_rna <- union(rownames(df.rna), rownames(df.viper)) 
     
-  }
-  
-  # Select proteins and phosphoproteins
-  # TODO: Handle NULL assays
-  if (!is.null(select_genes)) {
-    
-    if (!is.null(protein_rna_table)) {
+    # Gene must be present in merged naming table
+    if (full_matches_only) {
       
-      select_proteins <- protein_rna_table %>%
-        filter(Gene %in% select_genes) %>%
-        pull(Protein)
+      select_genes <- all_rna[all_rna %in% merged_rna_protein_table$Gene]
       
     } else {
       
-      select_proteins <- rownames(df.rppa)
+      select_genes <- all_rna
       
-    } 
-    
-  } else {
-    
-    select_proteins <- rownames(df.rppa)
+    }
     
   }
+  
+  # Reduce to select proteins/phosphoproteins
+  if (is.null(select_proteins)) {
+    
+    all_protein <- rownames(df.rppa)
+    
+    # Protein/phosphoprotein must be present in merged naming table
+    if (full_matches_only) {
+      
+      all_matched_protein <- c(merged_rna_protein_table$Protein,
+                              merged_rna_protein_table$Phospho)
+      
+      select_proteins <- all_protein[all_protein %in% all_matched_protein]
+    
+    } else {
+      
+      select_proteins <- all_protein
+      
+    }
+    
+  }
+  
+  
+  # Reduce merged naming table to only genes/proteins with matches
+  if (full_matches_only) {
+    
+    # Filter to select features based on merged RNA/protein names
+    if (!is.null(select_merged_names)) {
+      
+      merged_rna_protein_table <- merged_rna_protein_table %>%
+        filter(FullName %in% select_merged_names)
+      
+    }
+    
+    # Make sure features exist in RNA/protein data
+    merged_rna_protein_table <- merged_rna_protein_table %>%
+      filter(Gene %in% select_genes | 
+               Protein %in% select_proteins | 
+               Phospho %in% select_proteins)
+    
+    # Update select RNA/protein
+    #  THIS ISN"T REALLY FUNCTIONAL ANYMORE 
+    #    NEED TO FIGURE OUT HOW WE WANT TO FILTER GENES TO PROTEINS
+    select_genes <- merged_rna_protein_table$Gene
+    select_proteins <- c(merged_rna_protein_table$Protein, 
+                         merged_rna_protein_table$Phospho)
+    
+  }
+  
+  
+  
+  # TODO: Handle NULL assays
+  
   
   # Use Zscore or compute delta between paired sample
   if (Zchange) {
@@ -365,11 +563,11 @@ merge_assays <- function(meta,
       
     }
     
-    
     # Split proteins and phosphoproteins into separate matrices
     df.protein <- df.rppa[grep('_p', rownames(df.rppa), invert = TRUE),,drop = FALSE]
     df.phospho <- df.rppa[grep('_p', rownames(df.rppa), invert = FALSE),,drop = FALSE]
     
+    # Format protein data
     if (nrow(df.protein) > 0) {
       
       df.list[['Protein']] <- add_assay(df = df.protein, 
@@ -417,40 +615,35 @@ merge_assays <- function(meta,
   
   ##########################################
   
-  # Refilter protein_rna_table
-  protein_rna_table <- protein_rna_table %>% 
-    filter(Gene %in% select_gene_cats$Gene) %>%
-    filter(Protein %in% c(valid_proteins, valid_phosphos))
   
-  # Create new protein to rna table that includes merged names for final plotting
-  merged_names <- merge_rna_protein_table(protein_rna_table) %>% 
-    arrange(Protein, Gene)
+  # TODO: WHAT TO DO ABOUT DROP OUT IN RPPA DATA?
   
+  # Refilter merged naming table incase of RPPA feature dropout
+  #merged_rna_protein_table <- merged_rna_protein_table %>%
+  #  filter(Gene %in% select_genes) %>%
+  #  filter(Protein %in% valid_proteins | Phospho %in% valid_phosphos)
+  
+    
   # Parse each assay and swap gene/protein name with merged full name
   for (n in names(df.list)) {
     
     if (nrow(df.list[[n]])) {
       
       df.list[[n]] <- df.list[[n]] %>% 
-        left_join(merged_names) %>%
+        left_join(merged_rna_protein_table) %>%
+        
+        # Still needed?
         mutate(FullName = case_when(is.na(FullName) ~ Gene,
                                     TRUE ~ FullName)) %>%
-        mutate(Gene = FullName) %>% 
-        select(all_of(c('Sample', 'Gene', value.var, 'Assay'))) 
+        #mutate(Gene = FullName) %>% 
+        #select(all_of(c('Sample', 'Gene', value.var, 'Assay'))) 
+        select(all_of(c('Sample', 'FullName', value.var, 'Assay'))) 
       
     }
     
   }
   
-  # Get new names for select gene categories
-  select_gene_cats <- select_gene_cats %>% 
-    left_join(merged_names) %>%
-    mutate(FullName = case_when(is.na(FullName) ~ Gene,
-                                TRUE ~ FullName)) %>%
-    select(FullName, Category) %>%
-    setNames(c('Gene', 'Category')) %>%
-    data.frame()
-  
+
   
   ##########################################
   
@@ -461,8 +654,7 @@ merge_assays <- function(meta,
   df.merged$Assay <- factor(df.merged$Assay, levels = select_assays)
   
   # Get genes (only genes that are found in at least one sample)
-  all_genes <- as.character(intersect(select_gene_cats$Gene, 
-                                      df.merged$Gene))
+  all_features <- as.character(intersect(merged_rna_protein_table$FullName, df.merged$FullName))
   
   # Update select samples to only those remaining if computing delta
   select_samples <- select_samples[select_samples %in% df.merged$Sample]
@@ -474,7 +666,7 @@ merge_assays <- function(meta,
     sub.df <- df.merged %>% 
       filter(Sample == s) 
     
-    assay_mats[[s]] <- acast(sub.df, Gene ~ Assay, value.var = value.var)
+    assay_mats[[s]] <- acast(sub.df, FullName ~ Assay, value.var = value.var)
     
     if (fill_all_assays) {
       

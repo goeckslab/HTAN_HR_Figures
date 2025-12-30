@@ -6,11 +6,13 @@
 #
 ######################################################
 
+library(tidyverse)
 library(ComplexHeatmap)
 library(circlize)
 library(tidyr)
 library(dplyr)
 library(yarrr)
+
 
 
 # Annotation colors
@@ -1126,7 +1128,7 @@ compute_paired_change <- function(df, meta, return_matrix = TRUE,
   # Cast to matrix
   if (return_matrix) {
     
-    df <- acast(df, Feature ~ Sample, value.var = 'Change')
+    df <- reshape2::acast(df, Feature ~ Sample, value.var = 'Change')
     
   }
   

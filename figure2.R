@@ -71,6 +71,10 @@ ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
 # Ripley's K (CycIF)
 
 
+# Accessory tables
+protein_to_rna.htan <- load_protein_to_rna(fn.dir = source_dir)
+merged_rna_protein_names.htan <- load_merged_rna_to_protein_names(fn.dir = source_dir)
+
 
 #########################################################################
 #
@@ -444,7 +448,7 @@ multi_assay_heatmap(assays.test.mmtert,
 
 
 
-# TODO: TURN OFF SCALING
+# TODO: TEST!!!!!!!!!!
 assays.test.htan <- merge_assays(meta.htan, 
                                  df.rna = exp.scaled.htan, 
                                  df.viper = viper.scaled.htan, 
@@ -455,10 +459,13 @@ assays.test.htan <- merge_assays(meta.htan,
                                  scale_rppa = FALSE,
                                  
                                  
-                                 protein_rna_table = protein_rna_tbl, 
+                                 protein_rna_table = protein_to_rna.htan, 
                                  
-                                 select_gene_cats = gene_cats.main,
-                                 select_genes = gene_cats.main$Gene,
+                                 merged_rna_protein_table = merged_rna_protein_names.htan,
+                                 select_merged_names = merged_rna_protein_cats.main$MergedName,
+                                 
+                                 #select_gene_cats = gene_cats.main,
+                                 select_genes = gene_cats.main$Gene[1:40],
                                  
                                  select_samples = htan.paired,
                                  patient_column = 'Patient.Drug',
@@ -508,7 +515,7 @@ multi_assay_heatmap(assays.test.htan,
                     # Contains merged names?
                     #category_table = select_gene_cats.intrinsic,
                     # TMP TEST
-                    category_table = merged_names_cats.intrinsic.filtered,
+                    #category_table = merged_names_cats.intrinsic.filtered,
                     
                     # Original gene cats table (no merging)?
                     #gene_cats = select_gene_cats.intrinsic,

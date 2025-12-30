@@ -127,5 +127,20 @@ load_htan_rppa <- function(meta, fn = 'rppa_scaled.csv', fn.dir = '') {
 }
 
 
+load_protein_to_rna <- function(fn = 'protein_to_rna.csv', fn.dir = '') {
+  
+  fread(file.path(fn.dir, fn)) %>%
+    return()
+  
+}
+
+
+load_merged_rna_to_protein_names <- function(fn = 'merged_rna_protein_names.csv', fn.dir = '') {
+  
+  fread(file.path(fn.dir, fn)) %>%
+    return()
+  
+}
+
 
 
