@@ -83,55 +83,40 @@ make_oncoplots(
 
 
 
-
-# Compare change in activity between G1 arrest and G1 entry patients
-pvals.G1score.htan <- two_sample_test(gsva.change.htan, 
-                                      meta.htan, 
-                                      select_samples = htan.onProgression,
-                                      features = gsva_cats.main %>% 
-                                        filter(!grepl('Immune', Category)) %>%
-                                        pull(Pathway),
-                                      pheno = 'g1Pheno', testType = 'wilcox', 
-                                      paired_test = FALSE)
-
-two_sample_test(gsva.change.htan, 
-                meta.htan, 
-                select_samples = htan.onProgression,
-                features = gsva_cats.main %>% 
-                  filter(!grepl('Immune', Category)) %>%
-                  pull(Pathway),
-                pheno = 'g1Pheno', testType = 'wilcox', 
-                paired_test = FALSE) %>%
-  arrange(-abs(MeanChange)) %>%
-  filter(abs(MeanChange) > 0.5) %>%
-  pull(Feature) %>%
-  as.character()
-
-
-# Select top malignant cell pathways by average absolute delta
-pws.mc.htan <- pvals.G1score.htan %>% 
-  arrange(-abs(MeanChange)) %>%
-  filter(abs(MeanChange) > 0.5) %>%
-  pull(Feature) %>%
-  as.character()
-
-
-# Intrinsic pathways from Mann-Whitney test (p < 0.1)
-gsva_pws.intrinsic <- c(
-  "E2F_TARGETS",
-  "G2M_CHECKPOINT",
-  "KEGG_DNA_REPLICATION",
-  "MTORC1_SIGNALING",
-  "MYC_TARGETS_V1",
-  "MYC_TARGETS_V2",
-  "OXIDATIVE_PHOSPHORYLATION",
-  "REACTOME_CELL_CYCLE",
-  "REACTOME_REPLICATION_STRESS",
-  "REACTOME_S_PHASE"
-)
+# Select malignant cell pathways with average delta > 0.5 between G1 arrest and G1 entry tumors
+pws.mc.htan <- gsva.change.htan %>%
+  
+  # Convert to long format and merge with meta data and pathway categories
+  melt() %>%
+  setNames(c('Pathway', 'Sample', 'Delta')) %>%
+  left_join(meta.htan) %>%
+  left_join(gsva_cats.main) %>%
+  filter(Sample %in% htan.onProgression,
+         !grepl('Immune', Category)) %>%
+  
+  # Compute mean delta by group per pathway
+  group_by(g1Pheno, Pathway) %>%
+  mutate(MeanDelta = mean(Delta)) %>%
+  ungroup() %>%
+  select(g1Pheno, Pathway, MeanDelta) %>%
+  distinct() %>%
+  
+  # Compute difference in mean delta between groups per pathway
+  group_by(Pathway) %>%
+  mutate(GroupDiff = diff(MeanDelta)) %>%
+  ungroup() %>%
+  
+  # Select significant pathways for heatmap
+  arrange(Pathway) %>%
+  filter(abs(GroupDiff) > 0.5) %>%
+  pull(Pathway) %>%
+  as.character() %>%
+  unique()
+  
+  
 
 # Fixed order for groups
-gsva_cat.order.intrinsic <- c(
+pw_order.mc <- c(
   "Cell Cycle", 
   "Replication Stress", 
   "PI3K/AKT/mTOR", 
@@ -153,9 +138,9 @@ make_heatmap(
   bar_anno = 'g1Score',
   
   # Select pathways and annotations
-  select_features = gsva_pws.intrinsic,
+  select_features = pws.mc.htan,
   category_table = gsva_cats.main, 
-  cat_order = gsva_cat.order.intrinsic,
+  cat_order = pw_order.mc,
   split_by_cat = TRUE, 
   
   # Heatmap arguments
@@ -179,79 +164,50 @@ make_heatmap(
 #
 ###########################################################################
 
-
-# Replicating figures created in htan_scripts/htan_rna_integration.R
-
-# TODO: RENAME RETURNED MATRICES
-
-assays.test.htan <- merge_assays(meta.htan, 
-                                 df.rna = exp.scaled.htan, 
-                                 df.viper = viper.scaled.htan, 
-                                 df.rppa = rppa.scaled.htan,
-                                 
-                                 scale_rna = FALSE,
-                                 scale_viper = FALSE,
-                                 scale_rppa = FALSE,
-                                 
-                                 
-                                 protein_rna_table = protein_to_rna.htan, 
-                                 
-                                 merged_rna_protein_table = merged_rna_protein_names.htan,
-                                 select_merged_names = merged_rna_protein_cats.main$MergedName,
-                                 
-                                 #select_genes = gene_cats.main$Gene[1:40],
-                                 
-                                 select_samples = htan.paired,
-                                 patient_column = 'Patient.Drug',
-                                 
-                                 fill_all_assays = TRUE,
-                                 
-                                 
-                                 Zchange = TRUE)
+merged_cats.mc <- c("G0", 
+                    "G1",
+                    "G1/S",
+                    "G2/M", 
+                    "G2/M CHECKPOINT", 
+                    "mTORC1", 
+                    "mTORC2", 
+                    "PI3K/AKT")
 
 
-
-
-
-
-
-merged_rna_protein.intrinsic <- merged_rna_protein_cats.main %>%
-  filter(Category %in% c("G0", "G1", "G1/S", "G2/M", "G2/M CHECKPOINT", #"Immune", "JAK/STAT", 
-                          "mTORC1", "mTORC2", "PI3K/AKT")) %>%
+# Malignant cell RNA and protein marker sets
+merged_rna_protein.mc <- merged_rna_protein_cats.main %>%
+  filter(Category %in% merged_cats.mc) %>%
   pull(MergedName)
 
 
-multi_assay_heatmap(assays.test.htan, 
-                    meta.htan, 
-                    
-                    pre = results_dir.test,
-                    fn = 'test_merged_assays',
-                    
-                    
-                    # Use to select how heatmaps are grouped (default "Sample", but "BiopsyChange.Drug" for paired delta values)
-                    group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
-                    #group_heatmaps_by = 'pamChange', # Default: Sample
-                    
-                    
-                    
-                    top_anno = top_annotations.multiassay.change.htan,
-                    btm_anno = btm_annotations.multiassay.change.htan,
-                    
-                    
-                    # Contains merged names?
-                    category_table = merged_rna_protein_cats.main,
-                    sub_sep = c(' '),
-                    
-                    # TODO: change parameter name
-                    order_rows = merged_rna_protein.intrinsic,
-                    
-                    
-                    add_width = .6,
-                    ht_width = unit(1.75, 'in'),
-                    ht_height = unit(11.2,'in'),
-                    annotate_assay_types = FALSE,
-                    show_annotation_legend = FALSE,
-                    value.var = 'Zchange')
+# Multi-assay heatmap of delta values for malignant cell markers in RNA and protein modalities
+multi_assay_heatmap(
+  multi_modal.change.htan, 
+  meta.htan, 
+  
+  pre = results_dir.test,
+  fn = 'figure2C',
+  
+  
+  # Heatmap groupings (pre-treatment to on-progression deltas)
+  group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
+  
+  top_anno = top_annotations.multiassay.change.htan,
+  btm_anno = btm_annotations.multiassay.change.htan,
+  
+  # Features and annotations
+  select_features = merged_rna_protein.mc,
+  category_table = merged_rna_protein_cats.main,
+  sub_sep = c(' '),
+  
+  # Heatmap parameters
+  add_width = .6,
+  ht_width = unit(1.75, 'in'),
+  ht_height = unit(11.2,'in'),
+  annotate_assay_types = FALSE, # REMOVE
+  show_annotation_legend = FALSE,
+  value.var = 'Zchange'
+)
 
 
 
@@ -280,26 +236,25 @@ ppws.mc <- c("Cell_cycle_progression",
 
 
 
+make_heatmap(
+  ppws.htan, 
+  meta.htan,
+  select_samples = htan.paired,
+  top_anno = top_annotations.split.htan,  
+  btm_anno = btm_annotations.split.htan,
+  category_table = ppw_cats.main, 
+  select_features = ppws.intrinsic,
+  split_column_by_pheno = 'Patient',
+  cluster_columns = FALSE,
+  heatmap_width = unit(4.5, 'in'),
+  heatmap_height = unit(5.5, 'in'),
+  add_width = -1.5,
+  compute_change = FALSE,
+  show_column_annotation_legend = FALSE,
+  lgd_name = 'Activity',
+  fn = file.path(results_dir.test, "rppa_pathways_test_heatmap.png")
+)
 
-# Heatmap splitting by patient
-ht.fn <- paste(results_dir.test, "rppa_pathways_test_heatmap.png", sep = '/')
-
-make_heatmap(ppws.htan, 
-             meta.htan,
-             select_samples = htan.paired,
-             top_anno = top_annotations.split.htan,  
-             btm_anno = btm_annotations.split.htan,
-             category_table = ppw_cats.main, 
-             select_features = ppws.intrinsic,
-             split_column_by_pheno = 'Patient',
-             cluster_columns = FALSE,
-             heatmap_width = unit(4.5, 'in'),
-             heatmap_height = unit(5.5, 'in'),
-             add_width = -1.5,
-             compute_change = FALSE,
-             show_column_annotation_legend = FALSE,
-             lgd_name = 'Activity',
-             fn = ht.fn)
 
 #############################################################################################
 #

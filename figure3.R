@@ -223,6 +223,46 @@ make_heatmap(gsva.htan,
 
 
 
+merged_cats.time <- c("Immune", "JAK/STAT")
+
+
+# Malignant cell RNA and protein marker sets
+merged_rna_protein.time <- merged_rna_protein_cats.main %>%
+  filter(Category %in% merged_cats.time) %>%
+  pull(MergedName)
+
+
+# Multi-assay heatmap of delta values for malignant cell markers in RNA and protein modalities
+multi_assay_heatmap(
+  multi_modal.change.htan, 
+  meta.htan, 
+  
+  pre = results_dir.test,
+  fn = 'figure3B',
+  
+  
+  # Heatmap groupings (pre-treatment to on-progression deltas)
+  group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
+  
+  top_anno = top_annotations.multiassay.change.htan,
+  btm_anno = btm_annotations.multiassay.change.htan,
+  
+  # Features and annotations
+  select_features = merged_rna_protein.time,
+  category_table = merged_rna_protein_cats.main,
+  sub_sep = c(' '),
+  
+  # Heatmap parameters
+  # TODO: UPDATE SIZSE TO MATCH ORIGINAL
+  add_width = .6,
+  ht_width = unit(1.75, 'in'),
+  ht_height = unit(11.2,'in'),
+  annotate_assay_types = FALSE, # REMOVE
+  show_annotation_legend = FALSE,
+  value.var = 'Zchange'
+)
+
+
 
 ###############################################################################################
 #

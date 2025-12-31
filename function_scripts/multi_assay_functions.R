@@ -687,7 +687,7 @@ sub_assay_heatmap <- function(assay_mats,
                               
                               # Not sure if all of these will be needed
                               group_order = TRUE,
-                              order_rows = NULL,
+                              select_features = NULL,
                               row_split = NULL,
                               row_gap = NULL
                           
@@ -730,7 +730,7 @@ sub_assay_heatmap <- function(assay_mats,
   # Order genes by mean across assays
   if (group_order) {
     
-    group_mats <- group_mats[order_rows,]
+    group_mats <- group_mats[select_features,]
     
   } else {
     
@@ -820,7 +820,8 @@ multi_assay_heatmap <- function(assay_mats,
                                 plot_each_group = FALSE, 
                                 
                                 # Features and feature tables
-                                order_rows = NULL, # change to select_features
+                                select_features = NULL,
+                                #select_features = NULL, # change to select_features
                                 group_order = TRUE,
                                 category_table = NULL,
                                 sub_sep = c(' ', '/', '_'),
@@ -945,13 +946,13 @@ multi_assay_heatmap <- function(assay_mats,
     sort()
   
   # Sort alphabetically
-  if (is.null(order_rows)) { 
+  if (is.null(select_features)) { 
     
-    order_rows <- sort(all_features) 
+    select_features <- sort(all_features) 
     
   } else {
     
-    order_rows <- order_rows[order_rows %in% all_features]
+    select_features <- select_features[select_features %in% all_features]
     
   }
   
@@ -970,7 +971,7 @@ multi_assay_heatmap <- function(assay_mats,
     }
     
     rownames(category_table) <- category_table$MergedName
-    row_split <- category_table[order_rows,'Category']
+    row_split <- category_table[select_features,'Category']
     row_gap <- unit(2, 'mm')
     
   } else {
@@ -1039,7 +1040,7 @@ multi_assay_heatmap <- function(assay_mats,
                         
                         # Not sure if all of these will be needed
                         group_order = group_order,
-                        order_rows = order_rows,
+                        select_features = select_features,
                         row_split = row_split,
                         row_gap = row_gap
       )

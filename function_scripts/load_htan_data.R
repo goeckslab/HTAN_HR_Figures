@@ -110,4 +110,30 @@ merged_rna_protein_names.htan <- load_merged_rna_to_protein_names(fn.dir = sourc
 
 
 
+# Multi-modal matrices (Pre-treatment to On-Progression Deltas)
+
+multi_modal.change.htan <- merge_assays(
+  meta.htan, 
+  df.rna = exp.scaled.htan, 
+  df.viper = viper.scaled.htan, 
+  df.rppa = rppa.scaled.htan,
+  
+  scale_rna = FALSE,
+  scale_viper = FALSE,
+  scale_rppa = FALSE,
+  
+  
+  protein_rna_table = protein_to_rna.htan, 
+  
+  merged_rna_protein_table = merged_rna_protein_names.htan,
+  select_merged_names = merged_rna_protein_cats.main$MergedName,
+  
+  select_samples = htan.paired,
+  patient_column = 'Patient.Drug',
+  
+  fill_all_assays = TRUE,
+  
+  
+  Zchange = TRUE
+)
 
