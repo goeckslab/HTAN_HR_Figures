@@ -12,275 +12,26 @@
 #source('function_scripts/load_marker_sets.R')
 #source('function_scripts/onco_heatmap_functions.R')
 
-# TEMP
-source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_htan_data.R')
+# Load functions
+# (temp paths)
+source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/htan_utils.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/heatmap_functions.R')
-source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/onco_heatmap_functions.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/multi_assay_functions.R')
+
+
+
+# Load sample data, gene/pathways sets, and annotations
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_htan_data.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
+source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/htan_annotations.R')
+
 
 # Temp: Store test figures here
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures"
 
 # To retest outputs
 results_dir.test <- "/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/test_figures2"
-
-
-###################################
-#
-#   LOAD MULTI-OMIC DATASETS
-#
-###################################
-
-source_dir <- '/Users/eggerj/OneDrive - Oregon Health & Science University/SMMART_HR+/Manuscript/Supp-Tables-Data/source_data'
-
-# Meta table
-meta.htan <- load_meta(fn.dir = source_dir)
-
-# Copy number alterations (DNA-seq) 
-cnvs.htan <- load_cnvs(meta.htan, fn.dir = source_dir)
-
-# Single nucleotide variants (DNA-seq) 
-snvs.htan <- load_snvs(meta.htan, fn.dir = source_dir)
-
-# GSVA enrichment scores (RNA-seq)
-gsva.htan <- load_gsva(meta.htan, fn.dir = source_dir)
-
-# GSVA paired delta values (RNA-seq)
-gsva.change.htan <- compute_paired_change(gsva.htan, meta.htan)
-
-
-# Gene expression (RNA-seq)
-exp.scaled.htan <- load_gene_expression(meta.htan, fn.dir = source_dir)
-
-# Viper regulator activity (RNA-seq)
-viper.scaled.htan <- load_viper(meta.htan, fn.dir = source_dir)
-
-# Protein/phosphoprotein abundance (RPPA)
-rppa.scaled.htan <- load_htan_rppa(meta.htan, fn.dir = source_dir)
-
-# Proteomic pathway scores (RPPA)
-ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
-
-# Chromatin accessibility enrichment (sciATAC-seq)
-
-
-# Tile density (CycIF)
-
-
-# Ripley's K (CycIF)
-
-
-# Accessory tables
-protein_to_rna.htan <- load_protein_to_rna(fn.dir = source_dir)
-merged_rna_protein_names.htan <- load_merged_rna_to_protein_names(fn.dir = source_dir)
-
-
-#########################################################################
-#
-#   DEFINE SAMPLE SETS USING HTAN IDS
-#
-#########################################################################
-
-# Paired tumor groups (for single time point)
-htan.paired <- c(
-  # HTA9-1
-  "HTA9-1_Bx1",
-  "HTA9-1_Bx2",
-  "HTA9-1_Bx4",
-  "HTA9-1_Bx5",
-  
-  # HTA9-2
-  "HTA9-2_Bx1",
-  "HTA9-2_Bx2",
-  
-  # HTA9-3
-  "HTA9-3_Bx1",
-  "HTA9-3_Bx2",
-  
-  # HTA9-14
-  "HTA9-14_Bx1",
-  "HTA9-14_Bx2",
-  "HTA9-14_Bx3",
-  
-  # HTA9-15
-  "HTA9-15_Bx1",
-  "HTA9-15_Bx2"
-)
-
-
-# On-progression (for delta values)
-htan.onProgression <- c(
-  # HTA9-1
-  "HTA9-1_Bx2",
-  "HTA9-1_Bx5",
-  
-  # HTA9-2
-  "HTA9-2_Bx2",
-  
-  # HTA9-3
-  "HTA9-3_Bx2",
-  
-  # HTA9-14
-  "HTA9-14_Bx2",
-  "HTA9-14_Bx3",
-  
-  # HTA9-15
-  "HTA9-15_Bx2"
-)
-
-
-
-#########################################################################
-#
-#   LOAD AND SET ANNOTATION OBJECTS FOR HEATMAPS AND ONCOPLOTS
-#
-#########################################################################
-
-# Load list of all heatmap and oncoplot annotations
-annotations.htan <- make_heatmap_annotations(meta.htan)
-
-# List of legends for heatmaps showing all (paired) samples
-lgds.htan <- make_heatmap_legends(meta.htan, select_samples = htan.paired)
-
-# List of legends for heatmaps showing delta between pairs during therapy
-lgds.change <- make_heatmap_legends(meta.htan, select_samples = htan.onProgression)
-
-
-
-#  -- Oncoplot annotations (single time point) -- #
-onco_annotations.htan <- list(
-  
-  # Annotations
-  annotations.htan$onProgAnno %v% 
-    annotations.htan$erAnno %v%
-    annotations.htan$responseAnno %v%
-    annotations.htan$pamAnno %v%
-    annotations.htan$patientAnno %v% 
-    annotations.htan$htanPointer %v% 
-    annotations.htan$sampleAnno, 
-  
-  # Legends
-  list(lgds.htan$opAstrLgd,
-       lgds.htan$onProgLgd,
-       lgds.htan$responseLgd,
-       lgds.htan$pamLgd)
-)
-
-
-# -- Annotations for all samples with patient ID annotation -- #
-top_annotations.htan <- list(
-  
-  # Annotations
-  annotations.htan$onProgAnno %v% 
-    annotations.htan$erAnno %v%
-    annotations.htan$responseAnno, 
-  
-  # Legends
-  list(lgds.htan$opAstrLgd,
-       lgds.htan$onProgLgd, 
-       lgds.htan$responseLgd)
-)
-
-
-btm_annotations.htan <- list(
-  
-  # Ananotations
-  annotations.htan$pamAnno %v%
-    annotations.htan$patientAnno %v% 
-    annotations.htan$htanPointer %v% 
-    annotations.htan$sampleAnno, 
-  
-  # Legends
-  list(lgds.htan$pamLgd)
-  
-)
-
-
-
-# -- Delta Heatmap Annotation -- #
-top_annotations.change.htan <- list(
-  
-  # Annotations
-  annotations.htan$onProgAnno %v% 
-    annotations.htan$erAnno %v%
-    annotations.htan$responseAnno, 
-  
-  # Legends
-  list(lgds.change$opAstrLgd,
-       lgds.change$onProgLgd, 
-       lgds.change$responseLgd)
-
-)
-
-
-btm_annotations.change.htan <- list(
-  
-  # Heatmaps
-  annotations.htan$pamChangeAnno %v%
-    annotations.htan$htanPointer %v% 
-    annotations.htan$biopPairAnno, 
-  
-  # Legends
-  list(lgds.change$pamChangeLgd)
-  
-)
-
-
-
-# Annotations for heatmaps split by patient (doesn't need patient ID annotation)
-top_annotations.split.htan <- list(
-  
-  # Heatmaps
-  annotations.htan$onProgAnno %v% 
-    annotations.htan$erAnno %v%
-    annotations.htan$responseAnno, 
-  
-  # Legends
-  list(lgds.htan$opAstrLgd,
-       lgds.htan$onProgLgd, 
-       lgds.htan$responseLgd)
-  
-)
-
-btm_annotations.split.htan <- list(
-  
-  # Heatmaps
-  annotations.htan$pamAnno %v%
-    annotations.htan$htanPointer %v% 
-    annotations.htan$sampleAnno, 
-  
-  # Legends
-  list(lgds.htan$pamLgd)
-  
-)
-
-
-# Top annotations for multi-assay heatmaps
-top_annotations.multiassay.change.htan <- list(
-  CDKi = list(anno_name = "CDK4/6i", 
-              anno_colors = colors.treatment
-  ),
-  ERi  = list(anno_colors = colors.treatment
-  )
-)
-
-# Bottom annotations for multi-assay heatmaps
-btm_annotations.multiassay.change.htan <- list(
-  pamChange = list(anno_name = "PAM50", 
-                   anno_colors = colors.pam
-  )
-)
-
-
-############################################################
-#
-#   LOAD TABLES FOR GENE AND PATHWAY SETS
-#
-############################################################
-
-
-source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
 
 
 
@@ -330,6 +81,41 @@ make_oncoplots(
 
 # Note: make sure "REACTOME_REPLICATION_STRESS" is named appropriately
 
+
+
+
+# Compare change in activity between G1 arrest and G1 entry patients
+pvals.G1score.htan <- two_sample_test(gsva.change.htan, 
+                                      meta.htan, 
+                                      select_samples = htan.onProgression,
+                                      features = gsva_cats.main %>% 
+                                        filter(!grepl('Immune', Category)) %>%
+                                        pull(Pathway),
+                                      pheno = 'g1Pheno', testType = 'wilcox', 
+                                      paired_test = FALSE)
+
+two_sample_test(gsva.change.htan, 
+                meta.htan, 
+                select_samples = htan.onProgression,
+                features = gsva_cats.main %>% 
+                  filter(!grepl('Immune', Category)) %>%
+                  pull(Pathway),
+                pheno = 'g1Pheno', testType = 'wilcox', 
+                paired_test = FALSE) %>%
+  arrange(-abs(MeanChange)) %>%
+  filter(abs(MeanChange) > 0.5) %>%
+  pull(Feature) %>%
+  as.character()
+
+
+# Select top malignant cell pathways by average absolute delta
+pws.mc.htan <- pvals.G1score.htan %>% 
+  arrange(-abs(MeanChange)) %>%
+  filter(abs(MeanChange) > 0.5) %>%
+  pull(Feature) %>%
+  as.character()
+
+
 # Intrinsic pathways from Mann-Whitney test (p < 0.1)
 gsva_pws.intrinsic <- c(
   "E2F_TARGETS",
@@ -373,7 +159,7 @@ make_heatmap(
   split_by_cat = TRUE, 
   
   # Heatmap arguments
-  fn = file.path(results_dir.test, 'figure2B'),
+  fn = file.path(results_dir.test, 'figure2B.png'),
   lgd_name = 'Activity Change',
   cluster_columns = TRUE,
   split_column_by_dendrogram = 2,

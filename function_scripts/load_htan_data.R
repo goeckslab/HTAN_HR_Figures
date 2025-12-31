@@ -1,146 +1,113 @@
 
 
+source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/htan_utils.R')
 
-###################################################################
+#########################################################################
 #
-#   FUNCTIONS FOR LOADING SOURCE DATA FOR HTAN HR+ MANUSCRIPT
+#   DEFINE SAMPLE SETS USING HTAN IDS
 #
-###################################################################
+#########################################################################
 
-library(data.table)
-library(dplyr)
-
-
-
-# Function to load sample meta table 
-load_meta <- function(fn = 'meta.csv', fn.dir = '') {
+# Paired tumor groups (for single time point)
+htan.paired <- c(
+  # HTA9-1
+  "HTA9-1_Bx1",
+  "HTA9-1_Bx2",
+  "HTA9-1_Bx4",
+  "HTA9-1_Bx5",
   
-  # Factor order for sample IDs
-  lvls <- c("HTA9-1_Bx1", "HTA9-1_Bx2", "HTA9-1_Bx4", "HTA9-1_Bx5", 
-            "HTA9-2_Bx1", "HTA9-2_Bx2", 
-            "HTA9-3_Bx1", "HTA9-3_Bx2", 
-            "HTA9-14_Bx1", "HTA9-14_Bx2", "HTA9-14_Bx3", 
-            "HTA9-15_Bx1", "HTA9-15_Bx2")
+  # HTA9-2
+  "HTA9-2_Bx1",
+  "HTA9-2_Bx2",
   
-  # Read in meta table
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    mutate(Sample = factor(Sample, levels = lvls)) %>%
-    arrange(Sample) %>%
-    data.frame()
-  rownames(df) <- df$Sample
+  # HTA9-3
+  "HTA9-3_Bx1",
+  "HTA9-3_Bx2",
   
-  return(df)
+  # HTA9-14
+  "HTA9-14_Bx1",
+  "HTA9-14_Bx2",
+  "HTA9-14_Bx3",
   
-}
-
-# Function to load CNV calls 
-load_cnvs <- function(meta, fn = 'cnvs.csv', fn.dir = '') {
-  
-  # Load CNV calls
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    data.frame(row.names = 1, check.names = FALSE) 
-  df <- df[,meta$Sample]
-  
-  return(df)
-  
-}
-
-# Function to load SNV calls 
-load_snvs <- function(meta, fn = 'snvs.csv', fn.dir = '') {
-  
-  # Load SNV calls
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    data.frame(row.names = 1, check.names = FALSE) 
-  df <- df[,meta$Sample]
-  
-  return(df)
-  
-}
-
-# Function to load GSVA pathway activity (RNA-seq) enrichment scores
-load_gsva <- function(meta, fn = 'gsva_scores.csv', fn.dir = '') {
-  
-  # Load pathway scores
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    data.frame(row.names = 1, check.names = FALSE) 
-  df <- df[,meta$Sample]
-  
-  return(df)
-  
-}
-
-# Function to load proteomic pathway activity (RPPA) scores
-load_ppws <- function(meta, fn = 'protein_pathway_scores.csv', fn.dir = '') {
-  
-  # Load pathway scores
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    data.frame(row.names = 1, check.names = FALSE) 
-  
-  select_samples <- as.character(meta$Sample[meta$Sample %in% colnames(df)])
-  
-  df <- df[,select_samples]
-  
-  return(df)
-  
-}
+  # HTA9-15
+  "HTA9-15_Bx1",
+  "HTA9-15_Bx2"
+)
 
 
-# Function to load gene expression (select categories, pre-scaled to background MMTERT cohort)
-load_gene_expression <- function(meta, fn = 'gene_expression_scaled_categories.csv', fn.dir = '') {
+# On-progression (for delta values)
+htan.onProgression <- c(
+  # HTA9-1
+  "HTA9-1_Bx2",
+  "HTA9-1_Bx5",
   
-  # Load expression
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    select(-Category) %>%
-    data.frame(row.names = 1, check.names = FALSE)
-  df <- df[,meta$Sample]
+  # HTA9-2
+  "HTA9-2_Bx2",
   
-  return(df)
+  # HTA9-3
+  "HTA9-3_Bx2",
   
-}
-
-# Function to load viper activity (select categories, pre-scaled to background MMTERT cohort)
-load_viper <- function(meta, fn = 'viper_scaled_categories.csv', fn.dir = '') {
+  # HTA9-14
+  "HTA9-14_Bx2",
+  "HTA9-14_Bx3",
   
-  # Load viper
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    select(-Category) %>%
-    data.frame(row.names = 1, check.names = FALSE)
-  df <- df[,meta$Sample]
-  
-  return(df)
-  
-}
-
-# Function to load RPPA protein abundace (pre-scaled to background MMTERT cohort)
-load_htan_rppa <- function(meta, fn = 'rppa_scaled.csv', fn.dir = '') {
-  
-  # Load rppa
-  df <- fread(paste(fn.dir, fn, sep = '/')) %>%
-    data.frame(row.names = 1, check.names = FALSE)
-  
-  select_samples <- as.character(meta$Sample[meta$Sample %in% colnames(df)])
-  
-  df <- df[,select_samples]
-  
-  return(df)
-  
-}
+  # HTA9-15
+  "HTA9-15_Bx2"
+)
 
 
-load_protein_to_rna <- function(fn = 'protein_to_rna.csv', fn.dir = '') {
-  
-  fread(file.path(fn.dir, fn)) %>%
-    return()
-  
-}
 
 
-load_merged_rna_to_protein_names <- function(fn = 'merged_rna_protein_names.csv', fn.dir = '') {
-  
-  fread(file.path(fn.dir, fn)) %>%
-    return()
-  
-}
+
+##########################################################################
+#
+#   LOAD MULTI-OMIC DATASETS
+#
+##########################################################################
+
+source_dir <- '/Users/eggerj/OneDrive - Oregon Health & Science University/SMMART_HR+/Manuscript/Supp-Tables-Data/source_data'
+
+# Meta table
+meta.htan <- load_meta(fn.dir = source_dir)
+
+# Copy number alterations (DNA-seq) 
+cnvs.htan <- load_cnvs(meta.htan, fn.dir = source_dir)
+
+# Single nucleotide variants (DNA-seq) 
+snvs.htan <- load_snvs(meta.htan, fn.dir = source_dir)
+
+# GSVA enrichment scores (RNA-seq)
+gsva.htan <- load_gsva(meta.htan, fn.dir = source_dir)
+
+# GSVA paired delta values (RNA-seq)
+gsva.change.htan <- compute_paired_change(gsva.htan, meta.htan)
+
+
+# Gene expression (RNA-seq)
+exp.scaled.htan <- load_gene_expression(meta.htan, fn.dir = source_dir)
+
+# Viper regulator activity (RNA-seq)
+viper.scaled.htan <- load_viper(meta.htan, fn.dir = source_dir)
+
+# Protein/phosphoprotein abundance (RPPA)
+rppa.scaled.htan <- load_htan_rppa(meta.htan, fn.dir = source_dir)
+
+# Proteomic pathway scores (RPPA)
+ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
+
+# Chromatin accessibility enrichment (sciATAC-seq)
+
+
+# Tile density (CycIF)
+
+
+# Ripley's K (CycIF)
+
+
+# Accessory tables
+protein_to_rna.htan <- load_protein_to_rna(fn.dir = source_dir)
+merged_rna_protein_names.htan <- load_merged_rna_to_protein_names(fn.dir = source_dir)
+
 
 
 
