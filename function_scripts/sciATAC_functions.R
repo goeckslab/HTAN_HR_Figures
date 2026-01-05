@@ -40,8 +40,24 @@ perm_test_module <- function(s1, s2, n_perm = 10000, alternative = 'greater') {
 }
 
 
-get_sciATAC_module_permpvals <- function(df, modules, sample_group = 'HtanID', 
-                                         alt_group = 'rest', n_perm = 10000, alternative = 'greater') {
+get_sciATAC_module_permpvals <- function(df, 
+                                         select_pathways, 
+                                         meta = NULL,
+                                         
+                                         #sample_group = 'HtanID', 
+                                         sample_group = 'Sample',
+                                         
+                                         alt_group = 'rest', 
+                                         n_perm = 10000, 
+                                         alternative = 'greater') {
+  
+  # Merge with meta table (needed if testing group column not sciATAC enrichment score table)
+  if (!is.null(meta)) {
+    
+    df <- df %>%
+      left_join(meta)
+    
+  }
   
   # Get all sample IDs for sciATAC
   samples <- df %>% 
@@ -50,7 +66,7 @@ get_sciATAC_module_permpvals <- function(df, modules, sample_group = 'HtanID',
     unique()
   
   # Make sure pathways are available
-  modules <- modules[modules %in% colnames(df)]
+  select_pathways <- select_pathways[select_pathways %in% colnames(df)]
   
   # Dataframe to store p-values
   pvals <- data.frame(Module = character(), 
@@ -61,7 +77,7 @@ get_sciATAC_module_permpvals <- function(df, modules, sample_group = 'HtanID',
   for (s in samples) {
     
     # Parse each pathway (module)
-    for (m in modules) {
+    for (m in select_pathways) {
       
       s1 <- df %>%
         filter(.data[[sample_group]] == s) %>%
@@ -102,11 +118,26 @@ get_sciATAC_module_permpvals <- function(df, modules, sample_group = 'HtanID',
 
 
 
-
 # Function to compute statistical testing on module scores from pathway genesets
 #  Computes test on sciATAC cells from each sample by testing all cells in that sample to
 #   all cells from all other samples (default) OR all single cell samples in cohort
-get_sciATAC_module_pvals <- function(df, modules, sample_group = 'HtanID', alt_group = 'all', alternative = 'greater') {
+get_sciATAC_pathway_pvals <- function(df, 
+                                      select_pathways, 
+                                      meta = NULL,
+                                      
+                                      #sample_group = 'HtanID', 
+                                      sample_group = 'Sample',
+                                      
+                                      alt_group = 'all', 
+                                      alternative = 'greater') {
+  
+  # Merge with meta table (needed if testing group column not sciATAC enrichment score table)
+  if (!is.null(meta)) {
+    
+    df <- df %>%
+      left_join(meta)
+    
+  }
   
   # Get all sample IDs for single cell
   samples <- df %>% 
@@ -114,43 +145,49 @@ get_sciATAC_module_pvals <- function(df, modules, sample_group = 'HtanID', alt_g
     as.character() %>% 
     unique()
   
-  # Make sure modules present in dataframe of module scores
+  # Make sure select_pathways present in dataframe of module scores
   #   Each row is cell and columns contain meta elements or pathways
-  modules <- modules[modules %in% colnames(df)]
+  select_pathways <- intersect(select_pathways, colnames(df))
   
-  # Start data frame to store pvalues for each module and sample
-  pvals <- data.frame(Module = character(), 
-                      Sample = character(), 
-                      Pvalue = numeric())
+  # Start data frame to store pvalues for each Pathway and sample
+  pvals <- tibble(Pathway = character(), 
+                  Sample = character(), 
+                  Pvalue = numeric())
   
   # Parse each sample
   for (s in samples) {
     
-    # Parse each module
-    for (m in modules) {
+    # Parse each Pathway
+    for (pw in select_pathways) {
       
       # Get all cells (rows) for current sample
       s1 <- df %>% 
         filter(.data[[sample_group]] == s) %>%
-        pull(.data[[m]])
+        pull(.data[[pw]])
       
       # Get all cells for all other samples
       if (alt_group == 'rest') {
         
         s2 <- df %>% 
           filter(.data[[sample_group]] != s) %>%
-          pull(.data[[m]])
+          pull(.data[[pw]])
         
         # Or, get all cells from dataset    
       } else {
         
-        s2 <- df %>% pull(.data[[m]])
+        s2 <- df %>% 
+          pull(.data[[pw]])
         
       }
       
       # Perform test and add to dataframe
       rez <- wilcox.test(s1, s2, alternative = alternative)$p.value
-      pvals <- rbind(pvals, data.frame(m, s, rez))
+      pvals <- bind_rows(
+        pvals, 
+        tibble(Pathway = pw, 
+               Sample = s, 
+               Pvalue = rez)
+      )
       
     }
     
@@ -166,27 +203,66 @@ get_sciATAC_module_pvals <- function(df, modules, sample_group = 'HtanID', alt_g
   
 }
 
-
+# Legacy calls
+get_sciATAC_module_pvals <- get_sciATAC_pathway_pvals
 
 
 # Function for plotting sciATAC pathway enrichment distributions and statistical testing
-plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'HtanID', celltypes = NULL, 
-                                       select_samples = NULL, test_all_samples = TRUE,
-                                       ncol = NULL, category_table = NULL, hide_legend = FALSE,
-                                       hide_x_axis = FALSE, facet_scale = 'fixed',
-                                       order_by_sample = FALSE,
-                                       show_cell_count = FALSE,
-                                       fixed_y_scale = TRUE, 
-                                       facet_formula = c('Category ~ Pathway'),
-                                       return_plot = TRUE,
-                                       fill_collins = NULL,
-                                       alt_group = 'all', fn = NULL, width = NULL, height = NULL) {
+plot_sciATAC_pathway_activity <- function(df, 
+                                          meta,
+                                          select_pathways, 
+                                          
+                                          x = 'Sample', 
+                                          col_by = 'Sample', 
+                                          
+                                          celltypes = NULL, 
+                                          select_samples = NULL, 
+                                          sample_order = NULL,
+                                          test_all_samples = TRUE,
+                                          ncol = NULL, 
+                                          category_table = NULL, 
+                                          hide_legend = FALSE,
+                                          hide_x_axis = FALSE, 
+                                          facet_scale = 'fixed',
+                                          order_by_sample = FALSE,
+                                          show_cell_count = FALSE,
+                                          fixed_y_scale = TRUE, 
+                                          facet_formula = c('Category ~ Pathway'),
+                                          return_plot = TRUE,
+                                          fill_collins = NULL,
+                                          alt_group = 'all', 
+                                          fn = NULL, 
+                                          width = NULL, 
+                                          height = NULL) {
   
-  # Get available modules
-  modules <- modules[modules %in% colnames(df)]
+  # Merge with meta table
+  df <- df %>%
+    left_join(meta)
+  
+  # Factor level?
+  if (is.null(sample_order)) {
+    
+    sample_order <- df %>%
+      pull(.data[[x]]) %>%
+      unique()
+    
+  }
+    
+  # Set factor levels for ordering
+  df <- df %>%
+    mutate(!!x := factor(.data[[x]], levels = sample_order))
+    
+  
+  # Get available pathways
+  select_pathways <- select_pathways[select_pathways %in% colnames(df)]
   
   # Filter to select cell types (e.g. tumor only)
-  if (!is.null(celltypes)) { df <- df %>% filter(Celltype %in% celltypes) }
+  if (!is.null(celltypes)) { 
+    
+    df <- df %>% 
+      filter(Celltype %in% celltypes) 
+    
+  }
   
   # Subset down to select samples before statistical testing
   if (!is.null(select_samples) & !test_all_samples) {
@@ -196,9 +272,13 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
     
   }
   
+  # Merge sample and cluster
+  df <- df %>% 
+    mutate(SampleCluster = paste(Sample, Cluster, sep = '_'))
+  
   # Compute pvalues for each module
-  cat('Computing Mann-Whitney test...\n')
-  module_pvals <- get_sciATAC_module_pvals(df, modules, sample_group = x, alt_group = 'rest')
+  cat('Computing hypothesis testing and gathering p-values...\n')
+  module_pvals <- get_sciATAC_pathway_pvals(df, select_pathways = select_pathways, sample_group = x, alt_group = 'rest')
   cat('\nDone\n')
   
   
@@ -211,11 +291,12 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
   }
   
   
-  
   # Subset down to needed columns and merge with module pvals
-  select_cols <- c('Barcode', 'HtanID', 'SampleCluster', 'Cluster', 'Celltype', 'Pathway', 'Score')
+  select_cols <- unique(c('Barcode', x, col_by, 'SampleCluster', 'Cluster', 'Celltype'))
+  select_cols <- select_cols[select_cols %in% colnames(df)]
+  select_cols <- c(select_cols, c('Pathway', 'Score'))
   df <- df %>%
-    pivot_longer(cols = modules,
+    pivot_longer(cols = select_pathways,
                  names_to = 'Pathway',
                  values_to = 'Score') %>%
     select(all_of(select_cols)) %>%
@@ -223,7 +304,7 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
     group_by(.data[[x]], Pathway) %>%
     mutate(median_score = median(Score),
            Count = n()) 
-  #mutate(!!x := paste0(.data[[x]], ' (', Count, ')')) %>%
+  
   
   # Add cell counts to legend
   if (show_cell_count) {
@@ -244,8 +325,8 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
   if (order_by_sample) {
     
     lvls <- df %>% 
-      arrange(HtanID) %>% 
-      pull(HtanID) %>%
+      arrange(.data[[x]]) %>% 
+      pull(.data[[x]]) %>%
       unique()
     
   } else {
@@ -259,7 +340,9 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
     
   }
   
-  df <- df %>% mutate(!!x := factor(.data[[x]], levels = lvls))
+  # Update levels in table
+  df <- df %>%
+    mutate(!!x := factor(.data[[x]], levels = lvls))
   
   
   
@@ -287,7 +370,8 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
     
     x <- 'lgd'
     lgd_name <- col_by
-    pvals <- pvals %>% left_join(df)
+    pvals <- pvals %>% 
+      left_join(df)
     
   }
   
@@ -318,25 +402,23 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
     
     ast_pos <- 'pwMax'
     
-    
   }
   
-  # If legend shows HtanID, change to "Sample" for title
-  if (lgd_name == 'HtanID') {lgd_name <- 'Sample'}
+  # If legend shows Sample.Drug, change to "Sample" for title
+  if (lgd_name == 'Sample.Drug') {lgd_name <- 'Sample'}
   
   # Fill colors
   if (is.null(fill_collins)) {
+    
     fill_collins <- htan_sample_cols
     
   }
   
-  
-  #print(fill_collins)
-  
   # Merge categories if provided
   if (!is.null(category_table)) {
     
-    df <- df %>% left_join(category_table)
+    df <- df %>% 
+      left_join(category_table)
     
     g <- ggplot(df) +
       geom_violin(aes_string(x = x, y = 'Score', fill = col_by), 
@@ -367,8 +449,8 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
   else {
     
     g <- ggplot(df) +
-      #geom_boxplot(aes_string(x = x, y = 'Score', fill = col_by)) + 
-      geom_violin(aes_string(x = x, y = 'Score', fill = col_by), draw_quantiles = c(0.25, 0.75)) + 
+      geom_violin(aes_string(x = x, y = 'Score', fill = col_by), 
+                  draw_quantiles = c(0.25, 0.75)) + 
       geom_text(data = pvals, 
                 aes_string(x = x, y = ast_pos, label = 'Sig'), 
                 parse = FALSE,
@@ -386,8 +468,8 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
                    geom="point", 
                    size = 2, 
                    alpha = 0.6) +
-      #scale_fill_discrete(name = lgd_name) +
-      scale_fill_manual(name = lgd_name, values = fill_collins) +
+      scale_fill_manual(name = lgd_name, 
+                        values = fill_collins) +
       xlab(NULL) + 
       ylab('Chromatin Accessibility\nEnrichment')
     
@@ -395,32 +477,51 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
   
   # Fix y scale
   if (fixed_y_scale) {
-    g <- g +  scale_y_continuous(breaks = seq(yMin, yMax, 0.25), limits = c(yMin, yMax))
+    
+    g <- g + scale_y_continuous(breaks = seq(yMin, yMax, 0.25), 
+                                limits = c(yMin, yMax))
+    
   }
   
   # Hide legend\
-  if (hide_legend) { g <- g + theme(legend.position = "none") }
+  if (hide_legend) { 
+    
+    g <- g + theme(legend.position = "none") 
+    
+  }
   
   # Hide x axis labels
-  if (hide_x_axis) {g <- g  +
-    theme(axis.text.x=element_blank(),
-          axis.ticks.x=element_blank())}
+  if (hide_x_axis) {
+    
+    g <- g + theme(axis.text.x=element_blank(),
+                   axis.ticks.x=element_blank())
+    
+  }
   
   # make 1 row shorter, 3 rows wider
   
   if (!is.null(fn)) {
     
-    numPWs <- df %>% pull(Pathway) %>% unique() %>% length()
+    numPWs <- df %>% 
+      pull(Pathway) %>% 
+      unique() %>% 
+      length()
     
     if (numPWs < 4) {
-      h <- 5
+      
       w <- 14
+      h <- 5
+      
     } else if (numPWs > 9) {
+      
       w <- 18
       h <- 8
+      
     } else {
-      h <- 8
+      
       w <- 14
+      h <- 8
+      
     }
     
     if (is.null(width)) {width <- w}
@@ -431,7 +532,9 @@ plot_sciATAC_module_scores <- function(df, modules, x = 'HtanID', col_by = 'Htan
   }
   
   if (return_plot) {
+    
     return(g)
+    
   }
   
 }

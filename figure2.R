@@ -18,6 +18,7 @@ source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/funct
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/heatmap_functions.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/onco_heatmap_functions.R')
 source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/multi_assay_functions.R')
+source('/Users/eggerj/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/sciATAC_functions.R')
 
 
 
@@ -182,18 +183,15 @@ merged_rna_protein.mc <- merged_rna_protein_cats.main %>%
 
 # Multi-assay heatmap of delta values for malignant cell markers in RNA and protein modalities
 multi_assay_heatmap(
+  
+  # Multi-assay delta z-scores
   multi_modal.change.htan, 
-  meta.htan, 
   
-  pre = results_dir.test,
-  fn = 'figure2C',
-  
-  
-  # Heatmap groupings (pre-treatment to on-progression deltas)
-  group_heatmaps_by = 'BiopsyChange.Drug', # Default: Sample
-  
+  # Sample data and annotations
+  meta = meta.htan, 
   top_anno = top_annotations.multiassay.change.htan,
   btm_anno = btm_annotations.multiassay.change.htan,
+  group_heatmaps_by = 'BiopsyChange.Drug',
   
   # Features and annotations
   select_features = merged_rna_protein.mc,
@@ -201,12 +199,15 @@ multi_assay_heatmap(
   sub_sep = c(' '),
   
   # Heatmap parameters
+  pre = results_dir.test,
+  fn = 'figure2C',
   add_width = .6,
   ht_width = unit(1.75, 'in'),
   ht_height = unit(11.2,'in'),
   annotate_assay_types = FALSE, # REMOVE
   show_annotation_legend = FALSE,
   value.var = 'Zchange'
+  
 )
 
 
@@ -235,24 +236,32 @@ ppws.mc <- c("Cell_cycle_progression",
              "TSC_mTOR")
 
 
-
+# Protein pathwey activity heatmap of intrinsic pathways
 make_heatmap(
+  
+  # Protein pathway activity
   ppws.htan, 
+  
+  # Sample meta data and annotations
   meta.htan,
   select_samples = htan.paired,
   top_anno = top_annotations.split.htan,  
   btm_anno = btm_annotations.split.htan,
+  split_column_by_pheno = 'Patient',
+  
+  # Features and annotations
   category_table = ppw_cats.main, 
   select_features = ppws.intrinsic,
-  split_column_by_pheno = 'Patient',
+  
+  # Heatmap parameters
   cluster_columns = FALSE,
+  show_column_annotation_legend = FALSE,
   heatmap_width = unit(4.5, 'in'),
   heatmap_height = unit(5.5, 'in'),
   add_width = -1.5,
-  compute_change = FALSE,
-  show_column_annotation_legend = FALSE,
   lgd_name = 'Activity',
-  fn = file.path(results_dir.test, "rppa_pathways_test_heatmap.png")
+  fn = file.path(results_dir.test, "figure2D.png")
+  
 )
 
 
@@ -263,6 +272,126 @@ make_heatmap(
 #
 #############################################################################################
 
+
+
+
+
+# Malignant cell sciATAC pathways
+scipws.mc.htan <- c(
+  "E2F_TARGETS",
+  "KEGG_DNA_REPLICATION",
+  "MYC_TARGETS_V1",
+  "REACTOME_CELL_CYCLE",
+  "REACTOME_S_PHASE",
+  "PROTEIN_SECRETION",
+  "UNFOLDED_PROTEIN_RESPONSE",
+  "OXIDATIVE_PHOSPHORYLATION",
+  "MTORC1_SIGNALING",
+  "G2M_CHECKPOINT",
+  "REACTOME_REPLICATION_STRESS"
+)
+
+
+
+
+
+# test getting p-values ahead of time
+test_pvals.sciATAC <- get_sciATAC_pathway_pvals(sciATAC.htan, 
+                                                select_pathways = scipws.mc.htan, 
+                                                meta = meta.htan,
+                                                
+                                                sample_group = 'Sample.Drug', 
+                                                
+                                                alt_group = 'rest')
+
+# TODO: Make computing p-values optional in plotting function so can be skipped if pvals table already provided
+#   make sure all filtering steps are also added to p-values function
+
+
+# TODO: Can we make this into generic function
+
+plot_list <- list()
+
+for (c in unique(sciATAC_cats.main$Category)) {
+  
+  sciATAC_subPws <- sciATAC_cats.main %>%
+    filter(Category == c,
+           Pathway %in% scipws.mc.htan) %>%
+    pull(Pathway)
+  
+  if (length(sciATAC_subPws)) {
+    
+    plot_list[[c]] <- plot_sciATAC_pathway_activity(
+      sciATAC.htan, 
+      meta = meta.htan,
+      
+      select_pathways = sciATAC_subPws,
+      category_table = sciATAC_cats.main,
+      
+      x = 'Sample.Drug',
+      col_by = 'Sample.Drug',
+      celltypes = c('Tumor'), 
+      
+      hide_legend = TRUE,
+      #hide_legend = FALSE,
+      hide_x_axis = TRUE,
+      order_by_sample = TRUE,
+      
+      alt_group = 'rest'
+    )
+    
+  }
+  
+}
+
+
+
+layout_mat <- t(matrix(c(1,1,1,1,
+                         2,2,NA, NA,
+                         3,3,NA,NA,
+                         4,NA,NA,NA,
+                         5,NA,NA,NA), 
+                       nrow = 4))
+
+g <- grid.arrange(plot_list$`Cell Cycle`, 
+                  plot_list$`Replication Stress`,
+                  plot_list$`Cellular Process`, 
+                  plot_list$`PI3K/AKT/mTOR`, 
+                  plot_list$Metabolic,
+                  nrow = 4,
+                  widths = c(3,2.2,2.2,2.2),
+                  layout_matrix = layout_mat)
+
+
+
+# May 19, 2025 Figure 2?
+ggsave(g, width = 14, height = 12,
+       filename = file.path(results_dir.test, 'figure2E.png'))
+
+
+
+
+
+
+
+# Save legend
+plot_sciATAC_pathway_activity(sciATAC_scores.htan, 
+                           c('G2M_CHECKPOINT'),
+                           category_table = sciATAC_cats.main,
+                           hide_legend = FALSE,
+                           hide_x_axis = TRUE,
+                           order_by_sample = TRUE,
+                           facet_formula = c('Category ~ Pathway'),
+                           #facet_formula = c('Pathway ~ Category'),
+                           celltypes = c('Tumor'), 
+                           
+                           alt_group = 'rest') %>% 
+  
+  # where is this?
+  get_legend() %>%
+  
+  ggsave(width = 8, height = 8,
+         filename = file.path(results_dir.test, 'figure2E_legend.png'))
 
 
 ####################################################################################

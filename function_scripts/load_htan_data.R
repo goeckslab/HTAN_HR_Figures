@@ -96,7 +96,7 @@ rppa.scaled.htan <- load_htan_rppa(meta.htan, fn.dir = source_dir)
 ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
 
 # Chromatin accessibility enrichment (sciATAC-seq)
-
+sciATAC.htan <- load_sciATAC(meta.htan, fn.dir = source_dir)
 
 # Tile density (CycIF)
 
@@ -108,7 +108,9 @@ ppws.htan <- load_ppws(meta.htan, fn.dir = source_dir)
 protein_to_rna.htan <- load_protein_to_rna(fn.dir = source_dir)
 merged_rna_protein_names.htan <- load_merged_rna_to_protein_names(fn.dir = source_dir)
 
-
+# Needed for select features
+# TODO: check if only possible if provided
+source('~/Documents/CompBio/HRplus_Project/manuscript_repo/HTAN_HR_Figures/function_scripts/load_marker_sets.R')
 
 # Multi-modal matrices (Pre-treatment to On-Progression Deltas)
 

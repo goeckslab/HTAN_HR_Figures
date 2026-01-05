@@ -125,6 +125,14 @@ load_htan_rppa <- function(meta, fn = 'rppa_scaled.csv', fn.dir = '') {
   
 }
 
+load_sciATAC <- function(meta, fn = 'sciATAC_enrichment_scores.csv', fn.dir = '') {
+  
+  fread(file.path(fn.dir, fn)) %>%
+    filter(Sample %in% meta$Sample) %>%
+    return()
+  
+}
+
 
 load_protein_to_rna <- function(fn = 'protein_to_rna.csv', fn.dir = '') {
   

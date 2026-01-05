@@ -484,6 +484,49 @@ ppws.mc <- c("Cell_cycle_progression",
 
 
 
+### SCI ATAC PATHWAYS
+
+
+# changing name from pw_cats.htan to pw_cats.sciATAC.htan to be safe
+sciATAC_cats.main <- list('Cell Cycle' = c("E2F_TARGETS", 
+                                          "MYC_TARGETS_V1", 
+                                          "KEGG_DNA_REPLICATION",  
+                                          "REACTOME_S_PHASE", 
+                                          "REACTOME_CELL_CYCLE"),
+                         'EMT' = c("EPITHELIAL_MESENCHYMAL_TRANSITION"),
+                         'Replication Stress' = c("G2M_CHECKPOINT", 
+                                                  "DNA_REPAIR",  
+                                                  "REACTOME_REPLICATION_STRESS",
+                                                  "REACTOME_ACTIVATION_OF_ATR_IN_RESPONSE_TO_REPLICATION_STRESS",
+                                                  "REACTOME_G2_M_CHECKPOINTS", 
+                                                  'REACTOME_G2_M_DNA_DAMAGE_CHECKPOINT'),
+                         'PI3K/AKT/mTOR' = c("MTORC1_SIGNALING", 
+                                             "PI3K_AKT_MTOR_SIGNALING",
+                                             "KEGG_MTOR_SIGNALING_PATHWAY"),
+                         'Cellular Process' = c("PROTEIN_SECRETION", 
+                                                "UNFOLDED_PROTEIN_RESPONSE"),
+                         'Metabolic' = c("OXIDATIVE_PHOSPHORYLATION"),
+                         'Estrogen Signaling' = c("ESTROGEN_RESPONSE_EARLY", 
+                                                  "ESTROGEN_RESPONSE_LATE", 
+                                                  "ANDROGEN_RESPONSE"),
+                         'JAK/STAT' = c("BIOCARTA_STAT3_PATHWAY", 
+                                        "REACTOME_STAT5_ACTIVATION",
+                                        "IL6_JAK_STAT3_SIGNALING",
+                                        "IL2_STAT5_SIGNALING"),
+                         'Immune Signaling' = c("REACTOME_PD_1_SIGNALING", 
+                                                "INTERFERON_GAMMA_RESPONSE",
+                                                "INTERFERON_ALPHA_RESPONSE"),
+                         'Immune Cell Activity' = c("B cells", 
+                                                    'iDC',
+                                                    "Macrophages", 
+                                                    "Mast cells", 
+                                                    "T helper cells", 
+                                                    "Activated CD8 T cell", 
+                                                    "Regulatory T cell"))
+
+sciATAC_cats.main <- make_category_table(sciATAC_cats.main, 'Pathway')
+
+
 
 ###############################################################
 #
