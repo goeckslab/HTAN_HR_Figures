@@ -282,7 +282,7 @@ plot_sciATAC_pathway_activity <- function(df,
   cat('\nDone\n')
   
   
-  # Subset down to select samples after statistical testing
+  # Subset down to select samples after statistical testing for plotting
   if (!is.null(select_samples) & test_all_samples) {
     
     df <- df %>% 
@@ -345,7 +345,7 @@ plot_sciATAC_pathway_activity <- function(df,
     mutate(!!x := factor(.data[[x]], levels = lvls))
   
   
-  
+  # THIS EVEN USED ANYMORE???
   # Format to scientific notation
   expSup <- function(w, digits=0) {
     tryCatch(sprintf(paste0("%.", digits, "f*x*10^%d"), w/10^floor(log10(abs(w))), floor(log10(abs(w)))), error = function(e) {0})
@@ -415,6 +415,7 @@ plot_sciATAC_pathway_activity <- function(df,
   }
   
   # Merge categories if provided
+  # TODO: Remove redundancy, if/else merge, then start ggplot, then if/elfe facet
   if (!is.null(category_table)) {
     
     df <- df %>% 
